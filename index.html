@@ -2,7 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0A0E13">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Visitas · Cybernetic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -30,13 +34,17 @@
   --shadow:0 8px 24px rgba(0,0,0,.45);
 }
 *{box-sizing:border-box;}
-html,body{height:100%;margin:0;}
+html,body{height:100%;height:100dvh;margin:0;overscroll-behavior:none;}
 body{
   background:var(--bg);
   color:var(--text);
   font-family:'Inter',sans-serif;
   -webkit-font-smoothing:antialiased;
   overflow:hidden;
+  position:fixed;
+  inset:0;
+  overscroll-behavior:none;
+  touch-action:manipulation;
 }
 h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
 .mono{font-family:'JetBrains Mono',monospace;}
@@ -64,10 +72,11 @@ input,select,textarea{font-family:inherit;}
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
 .field input,.field select,.field textarea{
-  width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
-  padding:10px 12px;border-radius:8px;font-size:14px;outline:none;transition:.15s;
+  width:100%;background:var(--surface-3);border:1px solid var(--border);color:var(--text);
+  padding:11px 12px;border-radius:8px;font-size:16px;outline:none;transition:.15s;min-height:44px;
 }
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field input::placeholder,.field textarea::placeholder{color:var(--muted-2);}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:var(--surface-2);box-shadow:0 0 0 3px rgba(34,225,255,.12);}
 .field textarea{resize:vertical;min-height:64px;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
@@ -107,8 +116,9 @@ input,select,textarea{font-family:inherit;}
 /* ---------- app shell ---------- */
 #app{height:100%;display:flex;flex-direction:column;}
 header.topbar{
-  height:56px;flex:0 0 56px;display:flex;align-items:center;gap:14px;
-  padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);z-index:20;
+  flex:0 0 auto;display:flex;align-items:center;gap:14px;
+  padding:0 16px;padding-top:env(safe-area-inset-top);height:calc(56px + env(safe-area-inset-top));
+  border-bottom:1px solid var(--border);background:var(--surface);z-index:20;
 }
 header.topbar .title{font-size:15px;font-weight:700;letter-spacing:.01em;}
 header.topbar .spacer{flex:1;}
@@ -124,10 +134,25 @@ aside.sidebar{
 }
 .sidebar-head{padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;}
 .search-box{position:relative;}
-.search-box input{padding-left:34px;}
-.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.5;}
+.search-box input{
+  padding:11px 14px 11px 36px;width:100%;background:var(--surface-3);border:1px solid var(--border);
+  color:var(--text);border-radius:8px;font-size:16px;outline:none;transition:.15s;min-height:44px;
+}
+.search-box input::placeholder{color:var(--muted-2);}
+.search-box input:focus{border-color:var(--accent);background:var(--surface-2);box-shadow:0 0 0 3px rgba(34,225,255,.12);}
+.search-box svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);opacity:.6;pointer-events:none;color:var(--muted);}
+.search-box .clear-btn{
+  position:absolute;right:6px;top:50%;transform:translateY(-50%);background:var(--surface-3);
+  border:none;color:var(--muted);width:24px;height:24px;border-radius:50%;font-size:14px;line-height:1;display:none;
+}
+.search-box .clear-btn:hover{color:var(--text);background:var(--surface);}
+.search-box.has-text .clear-btn{display:block;}
 .filter-row{display:flex;gap:8px;}
-.filter-row select{flex:1;font-size:12.5px;padding:8px 10px;}
+.filter-row select{
+  flex:1;font-size:13px;padding:9px 10px;min-height:40px;background:var(--surface-3);
+  border:1px solid var(--border);color:var(--text);border-radius:8px;outline:none;transition:.15s;
+}
+.filter-row select:focus{border-color:var(--accent);}
 .stats-strip{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);overflow-x:auto;}
 .stat-chip{flex:0 0 auto;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--muted);white-space:nowrap;}
 .stat-chip b{color:var(--text);font-size:13px;display:block;font-family:'Space Grotesk',sans-serif;}
@@ -189,8 +214,9 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .tl-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex:0 0 auto;}
 .tl-content{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
 .tl-meta{color:var(--muted-2);font-size:11px;margin-top:4px;}
-.note-add{display:flex;gap:8px;margin-top:10px;}
-.note-add textarea{flex:1;}
+.note-add{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+.note-add textarea{width:100%;}
+.note-add button{align-self:flex-end;min-width:96px;}
 
 /* ---------- modal (nuevo lead) ---------- */
 .modal-overlay{position:fixed;inset:0;background:rgba(4,6,9,.6);z-index:2040;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.15s;}
@@ -229,9 +255,16 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .leaflet-container{background:var(--bg) !important;}
 textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;}
 @media(max-width:820px){
-  aside.sidebar{position:fixed;left:0;top:56px;bottom:0;z-index:15;transform:translateX(-100%);transition:.2s;box-shadow:var(--shadow);}
-  aside.sidebar.show{transform:translateX(0);}
-  .panel{width:100vw;}
+  aside.sidebar{
+    position:fixed;left:0;right:0;top:calc(56px + env(safe-area-inset-top));bottom:0;z-index:15;
+    width:100%;transform:translateY(100%);transition:.22s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow);
+  }
+  aside.sidebar.show{transform:translateY(0);}
+  .panel, .panel-left{width:100vw;}
+  .modal{width:94vw !important;max-height:calc(100dvh - 40px);}
+  .map-fab{top:auto;bottom:calc(20px + env(safe-area-inset-bottom));right:16px;}
+  .legend{bottom:calc(20px + env(safe-area-inset-bottom));}
+  header.topbar .title{display:none;}
 }
 </style>
 </head>
@@ -284,9 +317,10 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
   <div class="body-wrap">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-head">
-        <div class="search-box">
+        <div class="search-box" id="search-box">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input id="search-input" type="text" placeholder="Buscar empresa o contacto..." oninput="renderLeadList()">
+          <input id="search-input" type="text" placeholder="Buscar empresa o contacto..." oninput="handleSearchInput()">
+          <button type="button" class="clear-btn" onclick="clearSearch()">✕</button>
         </div>
         <div class="filter-row">
           <select id="filter-estado" onchange="renderLeadList()">
@@ -422,7 +456,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
       <button class="close-x" onclick="closeRouteBuilder()">✕</button>
     </div>
     <div class="modal-body">
-      <p class="sub" style="margin-top:0;">Elige los sitios a visitar. Puedes filtrar por comuna o marcarlos uno por uno.</p>
+      <div class="section-label" style="margin-top:0;">Punto de partida</div>
+      <div class="field" style="position:relative;">
+        <label>Dirección de inicio</label>
+        <input id="rb-start-direccion" placeholder="Escribe una dirección..." autocomplete="off">
+        <div id="rb-start-suggestions" class="addr-suggestions hidden"></div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:6px;" onclick="useRouteStartLocation()" id="btn-rb-location">📍 Usar mi ubicación actual</button>
+      <p class="sub" style="font-size:12px;margin:0 0 18px;">Partida: <span class="mono" id="rb-start-coords">— (obligatorio)</span></p>
+
+      <div class="section-label">Sitios a visitar</div>
+      <p class="sub" style="margin-top:0;">Filtra por comuna (selecciona solo los pendientes en amarillo) o marca sitios uno por uno.</p>
       <div class="field">
         <label>Filtrar por comuna</label>
         <select id="rb-comuna" onchange="applyComunaFilter(this.value)">
@@ -432,11 +476,11 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
       <div class="field" style="margin-bottom:8px;">
         <label>Sitios (<span id="rb-count">0</span> seleccionados)</label>
       </div>
-      <div id="route-checklist" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+      <div id="route-checklist" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeRouteBuilder()">Cancelar</button>
-      <button class="btn btn-primary" onclick="createRoute()">Crear ruta</button>
+      <button class="btn btn-primary" onclick="createRoute()">Crear ruta óptima</button>
     </div>
   </div>
 </div>
@@ -764,6 +808,16 @@ function filteredLeads(){
 }
 
 /* ================= RENDER: SIDEBAR LIST ================= */
+window.handleSearchInput = function(){
+  $('search-box').classList.toggle('has-text', $('search-input').value.length > 0);
+  renderLeadList();
+};
+window.clearSearch = function(){
+  $('search-input').value = '';
+  $('search-box').classList.remove('has-text');
+  renderLeadList();
+  $('search-input').focus();
+};
 window.renderLeadList = function(){
   const list = filteredLeads();
   const el = $('lead-list');
@@ -1056,6 +1110,8 @@ window.toggleSidebar = function(){ $('sidebar').classList.toggle('show'); };
 
 /* ================= RUTAS (estilo Circuit) ================= */
 let pendingRouteSelection = new Set();
+let pendingRouteStart = null;
+let rbStartDebounce = null;
 
 function haversineKm(lat1, lng1, lat2, lng2){
   const R = 6371;
@@ -1102,12 +1158,71 @@ window.handleRouteButton = function(){
 };
 window.openRouteBuilder = function(){
   pendingRouteSelection = new Set();
+  pendingRouteStart = null;
+  $('rb-start-direccion').value = '';
+  $('rb-start-coords').textContent = '— (obligatorio)';
   const comunas = Array.from(new Set(pendingRoutableLeads().map(l => (l.comuna||'').trim()).filter(Boolean))).sort();
   $('rb-comuna').innerHTML = '<option value="">Elegir comuna...</option>' + comunas.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   renderRouteChecklist();
   $('route-builder-overlay').classList.add('show');
 };
 window.closeRouteBuilder = function(){ $('route-builder-overlay').classList.remove('show'); };
+
+// búsqueda de dirección de inicio (Nominatim), igual que en el modal de nuevo sitio
+$('rb-start-direccion').addEventListener('input', () => {
+  clearTimeout(rbStartDebounce);
+  const q = $('rb-start-direccion').value.trim();
+  const box = $('rb-start-suggestions');
+  if(q.length < 3){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  rbStartDebounce = setTimeout(() => searchRouteStartAddress(q), 400);
+});
+document.addEventListener('click', (e) => {
+  const box = $('rb-start-suggestions');
+  if(box && !box.contains(e.target) && e.target !== $('rb-start-direccion')){ box.classList.add('hidden'); }
+});
+async function searchRouteStartAddress(q){
+  const box = $('rb-start-suggestions');
+  try{
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const results = await res.json();
+    if(!results.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    box.innerHTML = results.map((r,i)=>`<div data-i="${i}">${esc(r.display_name)}</div>`).join('');
+    box.classList.remove('hidden');
+    box.querySelectorAll('div').forEach((el,i)=>{
+      el.onclick = () => {
+        const r = results[i];
+        const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+        pendingRouteStart = { lat, lng };
+        $('rb-start-direccion').value = r.display_name;
+        $('rb-start-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+        box.classList.add('hidden');
+      };
+    });
+  }catch(e){ /* falla silenciosa, no bloquea el flujo */ }
+}
+window.useRouteStartLocation = function(){
+  if(!navigator.geolocation){ toast('Tu navegador no soporta geolocalización.', true); return; }
+  const btn = $('btn-rb-location');
+  const original = btn.textContent;
+  btn.textContent = 'Buscando ubicación...'; btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    pendingRouteStart = { lat, lng };
+    $('rb-start-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    btn.textContent = original; btn.disabled = false;
+    try{
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+      const data = await res.json();
+      if(data && data.display_name) $('rb-start-direccion').value = data.display_name;
+    }catch(e){ /* best-effort */ }
+  }, (err) => {
+    btn.textContent = original; btn.disabled = false;
+    toast('No se pudo obtener tu ubicación: ' + err.message, true);
+  }, { enableHighAccuracy: true, timeout: 8000 });
+};
+
 function renderRouteChecklist(){
   const pending = pendingRoutableLeads();
   const box = $('route-checklist');
@@ -1130,17 +1245,30 @@ window.toggleRouteSelection = function(id, checked){
   $('rb-count').textContent = pendingRouteSelection.size;
 };
 window.applyComunaFilter = function(comuna){
-  if(!comuna) return;
-  pendingRoutableLeads().filter(l => (l.comuna||'').trim() === comuna).forEach(l => pendingRouteSelection.add(l.id));
+  if(!comuna){
+    pendingRouteSelection = new Set();
+    renderRouteChecklist();
+    return;
+  }
+  // Selección exclusiva: solo los sitios "Por visitar" (amarillo) de esa comuna.
+  pendingRouteSelection = new Set(
+    pendingRoutableLeads()
+      .filter(l => l.estado === 'por_visitar' && (l.comuna||'').trim() === comuna)
+      .map(l => l.id)
+  );
   renderRouteChecklist();
+  if(pendingRouteSelection.size === 0){
+    toast('No hay sitios "Por visitar" en esa comuna.', true);
+  }
 };
 window.createRoute = async function(){
   const ids = Array.from(pendingRouteSelection);
   if(!ids.length){ toast('Selecciona al menos un sitio para la ruta.', true); return; }
+  if(!pendingRouteStart){ toast('Ingresa o detecta tu punto de partida antes de crear la ruta.', true); return; }
   const stopsData = ids.map(id => leads[id]).filter(Boolean);
-  const start = await getCurrentLocationSafe() || { lat: stopsData[0].lat, lng: stopsData[0].lng };
+  const start = pendingRouteStart;
   const ordered = nearestNeighborOrder(start, stopsData);
-  activeRoute = { stopIds: ordered.map(s => s.id), createdAt: Date.now() };
+  activeRoute = { stopIds: ordered.map(s => s.id), createdAt: Date.now(), startPoint: start };
   saveActiveRouteToStorage();
   updateRouteButtonLabel();
   closeRouteBuilder();
