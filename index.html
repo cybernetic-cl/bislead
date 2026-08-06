@@ -382,6 +382,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
           <button class="btn btn-ghost btn-sm" onclick="hideArrivalCard()">Ahora no</button>
         </div>
       </div>
+      <div class="arrival-card hidden" id="route-next-card">
+        <div class="ac-icon">✅</div>
+        <div class="ac-body">
+          <div class="ac-title">Sitio marcado como visitado</div>
+          <div class="ac-sub" id="route-next-sub">¿Qué quieres hacer ahora?</div>
+        </div>
+        <div class="ac-actions">
+          <button class="btn btn-primary btn-sm" onclick="goToNextStop()" id="route-next-btn">Ir al siguiente</button>
+          <button class="btn btn-danger btn-sm" onclick="finishRoute()">Finalizar ruta</button>
+        </div>
+      </div>
     </main>
   </div>
 </div>
@@ -1111,7 +1122,7 @@ window.saveCompleteVisit = async function(){
     updateRouteButtonLabel();
     if(activeRoute && activeRoute.stopIds.includes(justVisitedId)){
       renderRoutePanel();
-      advanceRouteAfterVisit(justVisitedId);
+      showRouteNextCard(justVisitedId);
     }
   }catch(e){ toast('Error guardando la visita: ' + e.message, true); }
 };
@@ -1409,6 +1420,7 @@ window.finishRoute = function(){
   if(currentUser){ try{ localStorage.removeItem('visitas_route_' + currentUser.uid); }catch(e){} }
   updateRouteButtonLabel();
   closeRoutePanel();
+  hideRouteNextCard();
   syncRouteVisuals();
   toast('Ruta finalizada.');
 };
@@ -1423,6 +1435,33 @@ function advanceRouteAfterVisit(justVisitedId){
     syncRouteVisuals();
   }
 }
+let pendingNextStopId = null;
+function showRouteNextCard(justVisitedId){
+  arrivalShownForStopId = null;
+  hideArrivalCard();
+  pendingNextStopId = activeRoute.stopIds.find(id => id !== justVisitedId && leads[id] && leads[id].estado !== 'visitado') || null;
+  const btn = $('route-next-btn');
+  if(pendingNextStopId){
+    const nextLead = leads[pendingNextStopId];
+    btn.textContent = 'Ir al siguiente';
+    btn.disabled = false;
+    $('route-next-sub').textContent = `Siguiente parada: ${nextLead.empresa}`;
+  }else{
+    btn.textContent = 'Ir al siguiente';
+    btn.disabled = true;
+    $('route-next-sub').textContent = '¡Ruta completada! No quedan más paradas pendientes.';
+  }
+  $('route-next-card').classList.remove('hidden');
+}
+window.hideRouteNextCard = function(){
+  $('route-next-card').classList.add('hidden');
+  pendingNextStopId = null;
+};
+window.goToNextStop = function(){
+  const next = pendingNextStopId;
+  hideRouteNextCard();
+  if(next) selectLead(next);
+};
 
 /* ---------------- línea de ruta en el mapa + GPS en vivo ---------------- */
 function currentRouteStopId(){
