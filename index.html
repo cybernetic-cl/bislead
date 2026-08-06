@@ -149,16 +149,16 @@ main.map-area{flex:1;position:relative;min-width:0;}
   position:absolute;top:14px;left:50%;transform:translateX(-50%);
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
   padding:8px 14px;font-size:12.5px;color:var(--muted);box-shadow:var(--shadow);
-  pointer-events:none;z-index:5;display:flex;align-items:center;gap:8px;
+  pointer-events:none;z-index:1100;display:flex;align-items:center;gap:8px;
 }
 .map-hint kbd{background:var(--surface-3);border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);}
 .map-fab{
-  position:absolute;bottom:20px;right:20px;z-index:5;background:var(--accent);color:#04262A;
+  position:absolute;top:60px;right:16px;z-index:1200;background:var(--accent);color:#04262A;
   border:none;border-radius:12px;padding:12px 18px;font-weight:700;font-size:13.5px;
   box-shadow:0 6px 20px rgba(34,225,255,.25);display:flex;align-items:center;gap:8px;
 }
 .legend{
-  position:absolute;bottom:20px;left:16px;z-index:5;background:var(--surface);border:1px solid var(--border);
+  position:absolute;bottom:20px;left:16px;z-index:1100;background:var(--surface);border:1px solid var(--border);
   border-radius:10px;padding:10px 12px;box-shadow:var(--shadow);font-size:11.5px;
 }
 .legend-row{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--muted);}
@@ -277,11 +277,8 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
           <select id="filter-estado" onchange="renderLeadList()">
             <option value="">Todos los estados</option>
             <option value="por_visitar">Por visitar</option>
-            <option value="agendada">Visita agendada</option>
-            <option value="seguimiento">En seguimiento</option>
-            <option value="negociacion">Negociación</option>
-            <option value="ganado">Ganado</option>
-            <option value="perdido">Perdido</option>
+            <option value="no_visitado">No visitado</option>
+            <option value="visitado">Visitado</option>
           </select>
           <select id="filter-vendedor" onchange="renderLeadList()" style="display:none;">
             <option value="">Todos los vendedores</option>
@@ -317,7 +314,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
   <div class="panel-body">
     <div class="field">
       <label>Estado</label>
-      <select id="d-estado" onchange="updateLeadField('estado', this.value)"></select>
+      <select id="d-estado" onchange="handleEstadoChange(this.value)"></select>
     </div>
     <div class="row2">
       <div class="field"><label>Contacto</label><input id="d-contacto" onchange="updateLeadField('contacto', this.value)"></div>
@@ -328,6 +325,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
       <div class="field"><label>Valor estimado (CLP)</label><input id="d-valor" type="number" onchange="updateLeadField('valor', Number(this.value)||0)"></div>
     </div>
     <div class="field"><label>Dirección</label><input id="d-direccion" onchange="updateLeadField('direccion', this.value)"></div>
+    <div class="nav-actions" id="d-nav-actions" style="display:flex;gap:8px;margin:-6px 0 14px;"></div>
     <div class="row2">
       <div class="field"><label>Próxima visita</label><input id="d-proxima" type="date" onchange="updateLeadField('proximaVisita', this.value)"></div>
       <div class="field">
@@ -365,17 +363,35 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
         <input id="n-direccion" placeholder="Escribe una dirección..." autocomplete="off">
         <div id="addr-suggestions" class="addr-suggestions hidden"></div>
       </div>
-      <div class="field"><label>Estado inicial</label>
-        <select id="n-estado">
-          <option value="por_visitar">Por visitar</option>
-          <option value="agendada">Visita agendada</option>
-        </select>
-      </div>
-      <p class="sub" style="font-size:12px;">Coordenadas: <span class="mono" id="n-coords">—</span> · también puedes hacer clic en el mapa para reubicar.</p>
+      <p class="sub" style="font-size:12px;">Coordenadas: <span class="mono" id="n-coords">—</span> · también puedes hacer clic en el mapa para reubicar. El sitio se crea como "Por visitar" (amarillo).</p>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeNewLeadModal()">Cancelar</button>
       <button class="btn btn-primary" onclick="saveNewLead()">Guardar sitio</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL COMPLETAR VISITA ================= -->
+<div class="modal-overlay" id="complete-visit-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 style="margin:0;font-size:16px;">Completar visita</h2>
+      <button class="close-x" onclick="closeCompleteVisit()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="sub" style="margin-top:0;">Registra los datos del cliente antes de marcar este sitio como visitado.</p>
+      <div class="field"><label>Nombre de la empresa</label><input id="cv-empresa"></div>
+      <div class="row2">
+        <div class="field"><label>Nombre del contacto</label><input id="cv-contacto"></div>
+        <div class="field"><label>Teléfono del contacto</label><input id="cv-telefono"></div>
+      </div>
+      <div class="field"><label>Correo del contacto</label><input id="cv-email" type="email"></div>
+      <div class="field"><label>Notas de la visita</label><textarea id="cv-notas" placeholder="¿Cómo resultó la visita?"></textarea></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeCompleteVisit()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCompleteVisit()">Guardar y marcar visitado</button>
     </div>
   </div>
 </div>
@@ -434,12 +450,9 @@ let leadsUnsub = null, usersUnsub = null;
 let addrDebounce = null;
 
 const ESTADOS = {
-  por_visitar:  { label: "Por visitar",      color: "#5B6673" },
-  agendada:     { label: "Visita agendada",  color: "#4C8DFF" },
-  seguimiento:  { label: "En seguimiento",   color: "#F5A623" },
-  negociacion:  { label: "Negociación",      color: "#B98CFF" },
-  ganado:       { label: "Ganado",           color: "#33D17A" },
-  perdido:      { label: "Perdido",          color: "#FF5C5C" },
+  por_visitar:  { label: "Por visitar",  color: "#F5C518" },  // amarillo
+  no_visitado:  { label: "No visitado",  color: "#FF5C5C" },  // rojo
+  visitado:     { label: "Visitado",     color: "#33D17A" },  // verde
 };
 
 // Tiles oscuros de CARTO (gratuitos, sin API key) sobre datos de OpenStreetMap
@@ -727,7 +740,7 @@ function renderMarkers(){
 window.openNewLeadModal = function(lat, lng){
   pendingNewCoords = (lat!=null && lng!=null) ? {lat,lng} : null;
   $('n-empresa').value=''; $('n-contacto').value=''; $('n-telefono').value='';
-  $('n-direccion').value=''; $('n-estado').value='por_visitar';
+  $('n-direccion').value='';
   $('n-coords').textContent = pendingNewCoords ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '— (usa la búsqueda de dirección)';
   $('new-lead-overlay').classList.add('show');
 };
@@ -744,7 +757,7 @@ window.saveNewLead = async function(){
     email: '',
     direccion: $('n-direccion').value.trim(),
     lat: pendingNewCoords.lat, lng: pendingNewCoords.lng,
-    estado: $('n-estado').value,
+    estado: 'por_visitar',
     valor: 0,
     proximaVisita: '',
     vendedorId: currentUser.uid,
@@ -794,6 +807,16 @@ function fillPanel(l){
   $('d-direccion').value = l.direccion || '';
   $('d-proxima').value = l.proximaVisita || '';
   fillVendorSelectInPanel(l);
+  const nav = $('d-nav-actions');
+  if(l.lat && l.lng){
+    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`;
+    const wazeUrl = `https://waze.com/ul?ll=${l.lat},${l.lng}&navigate=yes`;
+    nav.innerHTML = `
+      <a class="btn btn-sm btn-ghost" href="${gmapsUrl}" target="_blank" rel="noopener">📍 Abrir en Maps</a>
+      <a class="btn btn-sm btn-ghost" href="${wazeUrl}" target="_blank" rel="noopener">🚗 Abrir en Waze</a>`;
+  }else{
+    nav.innerHTML = '';
+  }
   const tl = (l.notas || []).slice().reverse();
   $('d-timeline').innerHTML = tl.length ? tl.map(n=>`
     <div class="tl-item"><div class="tl-dot"></div>
@@ -817,6 +840,51 @@ window.updateLeadField = async function(field, value){
   try{
     await updateDoc(doc(db, 'leads', selectedLeadId), { [field]: value, actualizadoEnMs: Date.now() });
   }catch(e){ toast('Error guardando cambio: ' + e.message, true); }
+};
+window.handleEstadoChange = function(value){
+  if(value === 'visitado'){
+    openCompleteVisit();
+  }else{
+    updateLeadField('estado', value);
+  }
+};
+window.openCompleteVisit = function(){
+  const l = leads[selectedLeadId];
+  if(!l) return;
+  $('cv-empresa').value = l.empresa || '';
+  $('cv-contacto').value = l.contacto || '';
+  $('cv-telefono').value = l.telefono || '';
+  $('cv-email').value = l.email || '';
+  $('cv-notas').value = '';
+  $('complete-visit-overlay').classList.add('show');
+};
+window.closeCompleteVisit = function(){
+  $('complete-visit-overlay').classList.remove('show');
+  // el <select> de estado pudo haber quedado en 'visitado' visualmente sin guardarse; lo reponemos
+  const l = leads[selectedLeadId];
+  if(l) $('d-estado').value = l.estado;
+};
+window.saveCompleteVisit = async function(){
+  if(!selectedLeadId) return;
+  const empresa = $('cv-empresa').value.trim();
+  if(!empresa){ toast('Ingresa el nombre de la empresa.', true); return; }
+  const notaTexto = $('cv-notas').value.trim();
+  const payload = {
+    empresa,
+    contacto: $('cv-contacto').value.trim(),
+    telefono: $('cv-telefono').value.trim(),
+    email: $('cv-email').value.trim(),
+    estado: 'visitado',
+    actualizadoEnMs: Date.now(),
+  };
+  if(notaTexto){
+    payload.notas = arrayUnion({ texto: notaTexto, autor: currentUser.nombre, fecha: Date.now() });
+  }
+  try{
+    await updateDoc(doc(db, 'leads', selectedLeadId), payload);
+    $('complete-visit-overlay').classList.remove('show');
+    toast('Visita registrada.');
+  }catch(e){ toast('Error guardando la visita: ' + e.message, true); }
 };
 window.reassignLead = async function(vendedorId){
   if(!selectedLeadId || currentUser.rol !== 'admin') return;
@@ -894,12 +962,16 @@ boot();
       }
       match /usuarios/{uid} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn() && request.auth.uid == uid;
+        // Solo puede crearse su propio doc, y siempre como 'vendedor' — nadie puede
+        // autoasignarse 'admin' al crear, ni siquiera hablando directo con Firestore.
+        allow create: if isSignedIn() && request.auth.uid == uid
+                       && request.resource.data.rol == 'vendedor';
         allow update: if isAdmin() || (isSignedIn() && request.auth.uid == uid && request.resource.data.rol == resource.data.rol);
       }
       match /leads/{leadId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        // Solo puedes crear leads asignados a ti mismo (o cualquiera si eres admin).
+        allow create: if isAdmin() || (isSignedIn() && request.resource.data.vendedorId == request.auth.uid);
         allow update, delete: if isAdmin() || (isSignedIn() && resource.data.vendedorId == request.auth.uid);
       }
     }
