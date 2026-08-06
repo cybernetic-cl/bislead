@@ -177,6 +177,7 @@ aside.sidebar{
 .lead-item.active{background:var(--surface-2);border-left:3px solid var(--accent);}
 .lead-item .li-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;}
 .lead-item .li-empresa{font-weight:600;font-size:13.5px;}
+.lead-item .li-direccion{font-size:11.5px;color:var(--muted-2);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .lead-item .li-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
 .empty-state{padding:40px 20px;text-align:center;color:var(--muted-2);font-size:13px;}
 .dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex:0 0 auto;}
@@ -435,6 +436,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     <div>
       <div style="font-size:11px;color:var(--muted-2);margin-bottom:4px;" class="mono" id="panel-id"></div>
       <h2 id="panel-empresa" style="margin:0;font-size:18px;"></h2>
+      <div id="panel-subdireccion" style="font-size:12px;color:var(--muted);margin-top:3px;"></div>
     </div>
     <button class="close-x" onclick="closePanel()">✕</button>
   </div>
@@ -631,6 +633,7 @@ let map;
 let selectedLeadId = null;
 let pendingNewCoords = null;
 let pendingNewComuna = '';
+let pendingNewCalleNumero = '';
 let leadsUnsub = null, usersUnsub = null;
 let addrDebounce = null;
 let activeRoute = null;      // { stopIds: [...], createdAt, startPoint }
@@ -872,6 +875,7 @@ async function searchAddress(q){
         const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
         pendingNewCoords = { lat, lng };
         pendingNewComuna = extractComuna(r.address) || '';
+        pendingNewCalleNumero = extractCalleNumero(r.address) || '';
         $('n-direccion').value = r.display_name;
         $('n-comuna').value = pendingNewComuna;
         $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -885,6 +889,18 @@ async function searchAddress(q){
 function extractComuna(addr){
   if(!addr) return '';
   return addr.city_district || addr.suburb || addr.municipality || addr.town || addr.city || '';
+}
+function extractCalleNumero(addr){
+  if(!addr) return '';
+  return [addr.road, addr.house_number].filter(Boolean).join(' ').trim();
+}
+// Título automático cuando el sitio se guarda sin nombre: "Calle Número - Comuna"
+function buildAutoTitle(direccionTexto, calleNumero, comunaTexto){
+  const calle = calleNumero || (direccionTexto ? direccionTexto.split(',')[0].trim() : '');
+  if(calle && comunaTexto) return `${calle} - ${comunaTexto}`;
+  if(calle) return calle;
+  if(direccionTexto) return direccionTexto;
+  return 'Sitio sin nombre';
 }
 
 function describeGeoError(err){
@@ -927,6 +943,7 @@ window.useMyLocation = function(){
       if(data && data.display_name){
         $('n-direccion').value = data.display_name;
         pendingNewComuna = extractComuna(data.address) || '';
+        pendingNewCalleNumero = extractCalleNumero(data.address) || '';
         $('n-comuna').value = pendingNewComuna;
       }
     }catch(e){ /* reverse geocode es best-effort */ }
@@ -1001,6 +1018,7 @@ window.renderLeadList = function(){
         <div class="li-empresa">${esc(l.empresa)}</div>
         <span class="dot" style="background:${st.color}"></span>
       </div>
+      ${l.direccion ? `<div class="li-direccion">${esc(l.direccion)}</div>` : ''}
       <div class="li-meta">
         <span>${st.label}</span>
         ${currentUser.rol==='admin' && vendedorNombre ? `<span>· ${esc(vendedorNombre)}</span>`:''}
@@ -1063,6 +1081,7 @@ function renderMarkers(){
 window.openNewLeadModal = function(lat, lng){
   pendingNewCoords = (lat!=null && lng!=null) ? {lat,lng} : null;
   pendingNewComuna = '';
+  pendingNewCalleNumero = '';
   $('n-empresa').value=''; $('n-contacto').value=''; $('n-telefono').value='';
   $('n-direccion').value=''; $('n-comuna').value='';
   $('n-coords').textContent = pendingNewCoords ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '— (usa la búsqueda de dirección o tu ubicación actual)';
@@ -1071,15 +1090,17 @@ window.openNewLeadModal = function(lat, lng){
 window.closeNewLeadModal = function(){ $('new-lead-overlay').classList.remove('show'); };
 window.saveNewLead = async function(){
   if(!pendingNewCoords){ toast('Selecciona una ubicación en el mapa, busca una dirección o usa tu ubicación actual.', true); return; }
-  const empresa = $('n-empresa').value.trim() || 'Sitio sin nombre';
+  const direccionTexto = $('n-direccion').value.trim();
+  const comunaTexto = $('n-comuna').value.trim() || pendingNewComuna;
+  const empresa = $('n-empresa').value.trim() || buildAutoTitle(direccionTexto, pendingNewCalleNumero, comunaTexto);
   const id = 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const payload = {
     empresa,
     contacto: $('n-contacto').value.trim(),
     telefono: $('n-telefono').value.trim(),
     email: '',
-    direccion: $('n-direccion').value.trim(),
-    comuna: $('n-comuna').value.trim(),
+    direccion: direccionTexto,
+    comuna: comunaTexto,
     lat: pendingNewCoords.lat, lng: pendingNewCoords.lng,
     estado: 'por_visitar',
     valor: 0,
@@ -1125,6 +1146,7 @@ window.closePanel = function(){
 function fillPanel(l){
   $('panel-id').textContent = l.id;
   $('panel-empresa').textContent = l.empresa;
+  $('panel-subdireccion').textContent = l.direccion || '';
   const sel = $('d-estado');
   sel.innerHTML = Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
   sel.value = l.estado;
