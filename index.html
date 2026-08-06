@@ -245,6 +245,28 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .stop-body .sb-name{font-size:13px;font-weight:600;}
 .stop-body .sb-meta{font-size:11.5px;color:var(--muted);}
 
+.arrival-card{
+  position:absolute;left:50%;bottom:90px;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--accent);border-radius:12px;
+  padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.5);z-index:1300;
+  display:flex;gap:10px;align-items:center;max-width:340px;width:92vw;
+  animation:arrivalIn .25s ease;
+}
+.arrival-card.hidden{display:none;}
+@keyframes arrivalIn{from{transform:translateX(-50%) translateY(12px);opacity:0;}to{transform:translateX(-50%) translateY(0);opacity:1;}}
+.ac-icon{font-size:20px;flex:0 0 auto;}
+.ac-body{flex:1;min-width:0;}
+.ac-title{font-size:13px;font-weight:700;}
+.ac-title span{color:var(--accent);}
+.ac-sub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.ac-actions{display:flex;flex-direction:column;gap:6px;flex:0 0 auto;}
+.you-are-here-dot{width:16px;height:16px;border-radius:50%;background:#4C8DFF;border:3px solid #fff;box-shadow:0 0 0 rgba(76,141,255,.5);position:relative;}
+.you-are-here-dot::after{
+  content:'';position:absolute;inset:-8px;border-radius:50%;border:2px solid #4C8DFF;
+  animation:yahPulse 1.8s ease-out infinite;
+}
+@keyframes yahPulse{0%{transform:scale(.4);opacity:.9;}100%{transform:scale(1.8);opacity:0;}}
+
 .addr-suggestions{
   position:absolute;top:100%;left:0;right:0;z-index:2050;background:var(--surface-2);
   border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;
@@ -263,6 +285,9 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
   .panel, .panel-left{width:100vw;}
   .modal{width:94vw !important;max-height:calc(100dvh - 40px);}
   .map-fab{top:auto;bottom:calc(20px + env(safe-area-inset-bottom));right:16px;}
+  .arrival-card{bottom:calc(84px + env(safe-area-inset-bottom));flex-direction:column;text-align:center;}
+  .ac-actions{flex-direction:row;width:100%;}
+  .ac-actions button{flex:1;}
   .legend{bottom:calc(20px + env(safe-area-inset-bottom));}
   header.topbar .title{display:none;}
 }
@@ -346,6 +371,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
         Nuevo sitio
       </button>
+      <div class="arrival-card hidden" id="arrival-card">
+        <div class="ac-icon">📍</div>
+        <div class="ac-body">
+          <div class="ac-title">Llegaste a <span id="ac-empresa"></span></div>
+          <div class="ac-sub">¿Registrar la visita ahora?</div>
+        </div>
+        <div class="ac-actions">
+          <button class="btn btn-primary btn-sm" onclick="openArrivalCompleteVisit()">Completar visita</button>
+          <button class="btn btn-ghost btn-sm" onclick="hideArrivalCard()">Ahora no</button>
+        </div>
+      </div>
     </main>
   </div>
 </div>
@@ -554,7 +590,12 @@ let pendingNewCoords = null;
 let pendingNewComuna = '';
 let leadsUnsub = null, usersUnsub = null;
 let addrDebounce = null;
-let activeRoute = null;      // { stopIds: [...], createdAt }
+let activeRoute = null;      // { stopIds: [...], createdAt, startPoint }
+let routePolyline = null;
+let youAreHereMarker = null;
+let geoWatchId = null;
+let arrivalShownForStopId = null;
+const ARRIVAL_THRESHOLD_KM = 0.12; // ~120 metros
 
 const ESTADOS = {
   por_visitar:  { label: "Por visitar",  color: "#F5C518" },  // amarillo
@@ -620,7 +661,7 @@ window.doRegister = async function(){
     });
   }catch(e){ $('register-err').textContent = friendlyAuthError(e); }
 };
-window.doLogout = async function(){ await signOut(auth); };
+window.doLogout = async function(){ stopLiveTracking(); clearRoutePolyline(); await signOut(auth); };
 function friendlyAuthError(e){
   const c = e.code || '';
   if(c.includes('user-not-found') || c.includes('wrong-password') || c.includes('invalid-credential')) return 'Correo o contraseña incorrectos.';
@@ -741,8 +782,31 @@ function extractComuna(addr){
   return addr.city_district || addr.suburb || addr.municipality || addr.town || addr.city || '';
 }
 
+function describeGeoError(err){
+  // code 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT
+  if(err.code === 1){
+    return 'El sitio no tiene permiso de ubicación (bloqueado en Chrome). Toca el ícono de candado junto a la URL → Permisos del sitio → Ubicación → Permitir, y recarga la página.';
+  }
+  if(err.code === 2){
+    return 'El teléfono no pudo determinar tu posición. Revisa que el GPS/Ubicación del sistema esté activado.';
+  }
+  if(err.code === 3){
+    return 'Se agotó el tiempo esperando tu ubicación. Verifica que tengas GPS o buena señal e inténtalo de nuevo.';
+  }
+  return 'No se pudo obtener tu ubicación: ' + (err.message || 'error desconocido');
+}
+async function warnIfGeoBlocked(){
+  if(!navigator.permissions || !navigator.permissions.query) return;
+  try{
+    const status = await navigator.permissions.query({ name: 'geolocation' });
+    if(status.state === 'denied'){
+      toast('La ubicación está bloqueada para este sitio en Chrome. Ábrela desde el ícono de candado junto a la URL → Permisos → Ubicación → Permitir.', true);
+    }
+  }catch(e){ /* algunos navegadores no soportan 'geolocation' en permissions.query */ }
+}
 window.useMyLocation = function(){
   if(!navigator.geolocation){ toast('Tu navegador no soporta geolocalización.', true); return; }
+  warnIfGeoBlocked();
   const btn = $('btn-my-location');
   const original = btn.textContent;
   btn.textContent = 'Buscando ubicación...';
@@ -765,7 +829,7 @@ window.useMyLocation = function(){
     }catch(e){ /* reverse geocode es best-effort */ }
   }, (err) => {
     btn.textContent = original; btn.disabled = false;
-    toast('No se pudo obtener tu ubicación: ' + err.message, true);
+    toast(describeGeoError(err), true);
   }, { enableHighAccuracy: true, timeout: 8000 });
 };
 
@@ -781,6 +845,7 @@ function subscribeLeads(){
     if(selectedLeadId && leads[selectedLeadId]) fillPanel(leads[selectedLeadId]);
     updateRouteButtonLabel();
     if(activeRoute && $('route-panel').classList.contains('show')) renderRoutePanel();
+    if(activeRoute && activeRoute.stopIds && activeRoute.stopIds.length) drawRoutePolyline();
   }, (err) => toast('Error leyendo leads: ' + err.message, true));
 }
 function subscribeUsuarios(){
@@ -1203,6 +1268,7 @@ async function searchRouteStartAddress(q){
 }
 window.useRouteStartLocation = function(){
   if(!navigator.geolocation){ toast('Tu navegador no soporta geolocalización.', true); return; }
+  warnIfGeoBlocked();
   const btn = $('btn-rb-location');
   const original = btn.textContent;
   btn.textContent = 'Buscando ubicación...'; btn.disabled = true;
@@ -1219,7 +1285,7 @@ window.useRouteStartLocation = function(){
     }catch(e){ /* best-effort */ }
   }, (err) => {
     btn.textContent = original; btn.disabled = false;
-    toast('No se pudo obtener tu ubicación: ' + err.message, true);
+    toast(describeGeoError(err), true);
   }, { enableHighAccuracy: true, timeout: 8000 });
 };
 
@@ -1273,6 +1339,7 @@ window.createRoute = async function(){
   updateRouteButtonLabel();
   closeRouteBuilder();
   toast('Ruta creada con ' + ordered.length + ' sitio(s).');
+  syncRouteVisuals();
   openRoutePanel();
   const first = ordered.find(s => leads[s.id] && leads[s.id].estado !== 'visitado');
   if(first) selectLead(first.id);
@@ -1288,6 +1355,7 @@ function loadActiveRouteFromStorage(){
     activeRoute = raw ? JSON.parse(raw) : null;
   }catch(e){ activeRoute = null; }
   updateRouteButtonLabel();
+  syncRouteVisuals();
 }
 function updateRouteButtonLabel(){
   const btn = $('btn-route');
@@ -1341,14 +1409,114 @@ window.finishRoute = function(){
   if(currentUser){ try{ localStorage.removeItem('visitas_route_' + currentUser.uid); }catch(e){} }
   updateRouteButtonLabel();
   closeRoutePanel();
+  syncRouteVisuals();
   toast('Ruta finalizada.');
 };
 function advanceRouteAfterVisit(justVisitedId){
+  arrivalShownForStopId = null;
+  hideArrivalCard();
   const next = activeRoute.stopIds.find(id => id !== justVisitedId && leads[id] && leads[id].estado !== 'visitado');
   if(next){
     setTimeout(() => selectLead(next), 350);
   }else{
     toast('¡Ruta completada! 🎉');
+    syncRouteVisuals();
+  }
+}
+
+/* ---------------- línea de ruta en el mapa + GPS en vivo ---------------- */
+function currentRouteStopId(){
+  if(!activeRoute || !activeRoute.stopIds) return null;
+  return activeRoute.stopIds.find(id => leads[id] && leads[id].estado !== 'visitado') || null;
+}
+function clearRoutePolyline(){
+  if(routePolyline){ map.removeLayer(routePolyline); routePolyline = null; }
+}
+function drawRoutePolyline(){
+  clearRoutePolyline();
+  if(!map || !activeRoute || !activeRoute.stopIds || !activeRoute.stopIds.length) return;
+  const points = [];
+  if(activeRoute.startPoint) points.push([activeRoute.startPoint.lat, activeRoute.startPoint.lng]);
+  activeRoute.stopIds.forEach(id => {
+    const l = leads[id];
+    if(l && l.lat && l.lng) points.push([l.lat, l.lng]);
+  });
+  if(points.length < 2) return;
+  routePolyline = L.polyline(points, {
+    color: '#22E1FF', weight: 3, opacity: 0.75, dashArray: '2 10', lineCap: 'round',
+  }).addTo(map);
+}
+function youAreHereIcon(){
+  return L.divIcon({ html: '<div class="you-are-here-dot"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] });
+}
+function stopLiveTracking(){
+  if(geoWatchId != null && navigator.geolocation){
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+  if(youAreHereMarker){ map.removeLayer(youAreHereMarker); youAreHereMarker = null; }
+  arrivalShownForStopId = null;
+  hideArrivalCard();
+}
+function startLiveTracking(){
+  if(geoWatchId != null) return; // ya está corriendo
+  if(!navigator.geolocation) return;
+  let firstFix = true;
+  geoWatchId = navigator.geolocation.watchPosition((pos) => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    if(youAreHereMarker){
+      youAreHereMarker.setLatLng([lat, lng]);
+    }else{
+      youAreHereMarker = L.marker([lat, lng], { icon: youAreHereIcon(), zIndexOffset: 900, interactive: false }).addTo(map);
+    }
+    if(firstFix){ map.panTo([lat, lng]); firstFix = false; }
+    checkArrival(lat, lng);
+  }, (err) => {
+    // silencioso: si el usuario bloqueó el permiso, simplemente no mostramos el punto en vivo
+  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 });
+}
+function checkArrival(lat, lng){
+  const stopId = currentRouteStopId();
+  if(!stopId){ return; }
+  const l = leads[stopId];
+  if(!l || !l.lat || !l.lng) return;
+  const dist = haversineKm(lat, lng, l.lat, l.lng);
+  if(dist <= ARRIVAL_THRESHOLD_KM){
+    if(arrivalShownForStopId !== stopId){
+      arrivalShownForStopId = stopId;
+      showArrivalCard(l);
+    }
+  }else if(dist > ARRIVAL_THRESHOLD_KM * 2 && arrivalShownForStopId === stopId){
+    // se alejó bastante: permitir que vuelva a avisar si regresa
+    arrivalShownForStopId = null;
+    hideArrivalCard();
+  }
+}
+let arrivalCardLeadId = null;
+function showArrivalCard(l){
+  arrivalCardLeadId = l.id;
+  $('ac-empresa').textContent = l.empresa;
+  $('arrival-card').classList.remove('hidden');
+}
+window.hideArrivalCard = function(){
+  $('arrival-card').classList.add('hidden');
+  arrivalCardLeadId = null;
+};
+window.openArrivalCompleteVisit = function(){
+  if(!arrivalCardLeadId) return;
+  selectLead(arrivalCardLeadId);
+  openCompleteVisit();
+  hideArrivalCard();
+};
+function syncRouteVisuals(){
+  if(!map) return;
+  updateRouteButtonLabel();
+  if(activeRoute && activeRoute.stopIds && activeRoute.stopIds.length){
+    drawRoutePolyline();
+    startLiveTracking();
+  }else{
+    clearRoutePolyline();
+    stopLiveTracking();
   }
 }
 
