@@ -84,6 +84,14 @@ input,select,textarea{font-family:inherit;}
   padding:4px;border-radius:5px;margin-right:-4px;transition:.15s;
 }
 .field input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;background:var(--surface-3);}
+.date-input-wrap{position:relative;}
+.date-input-wrap input[type="date"]{padding-right:42px;width:100%;}
+.date-cal-btn{
+  position:absolute;right:5px;top:50%;transform:translateY(-50%);background:var(--surface-3);
+  border:1px solid var(--border);border-radius:6px;width:32px;height:32px;font-size:15px;
+  display:flex;align-items:center;justify-content:center;color:var(--text);cursor:pointer;padding:0;
+}
+.date-cal-btn:hover,.date-cal-btn:active{background:var(--accent);border-color:var(--accent);color:#04262A;}
 .spinner{
   display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);
   border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;
@@ -114,10 +122,10 @@ input,select,textarea{font-family:inherit;}
 }
 .logo-mark::before,.logo-mark::after{
   content:'';position:absolute;width:5px;height:5px;background:var(--accent);
-  top:13px;box-shadow:0 0 8px var(--accent);
+  top:32%;box-shadow:0 0 8px var(--accent);border-radius:1px;
 }
-.logo-mark::before{left:11px;}
-.logo-mark::after{right:11px;}
+.logo-mark::before{left:26%;}
+.logo-mark::after{right:26%;}
 .card h1{font-size:20px;margin:0 0 4px;}
 .card p.sub{color:var(--muted);font-size:13.5px;margin:0 0 24px;}
 .tabbar{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:9px;margin-bottom:22px;}
@@ -310,7 +318,7 @@ main.map-area{flex:1;position:relative;min-width:0;}
 textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;}
 @media(max-width:820px){
   aside.sidebar{
-    position:fixed;left:0;right:0;top:calc(56px + env(safe-area-inset-top));bottom:0;z-index:15;
+    position:fixed;left:0;right:0;top:calc(56px + env(safe-area-inset-top));bottom:0;z-index:1400;
     width:100%;transform:translateY(100%);transition:.22s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow);
   }
   aside.sidebar.show{transform:translateY(0);}
@@ -357,7 +365,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
 <!-- ================= APP ================= -->
 <div id="app" class="hidden">
   <header class="topbar">
-    <button class="btn-ghost btn btn-sm" id="btn-toggle-sidebar" onclick="toggleSidebar()" style="display:none;">☰</button>
+    <button class="btn-ghost btn" id="btn-toggle-sidebar" onclick="toggleSidebar()" style="display:none;min-width:44px;min-height:44px;font-size:20px;padding:0;align-items:center;justify-content:center;">☰</button>
     <div class="logo-mark" style="margin:0;width:30px;height:30px;"></div>
     <div class="title">Visitas</div>
     <div class="spacer"></div>
@@ -457,7 +465,13 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     <div class="field"><label>Comuna</label><input id="d-comuna" onchange="updateLeadField('comuna', this.value)"></div>
     <div class="nav-actions" id="d-nav-actions" style="display:flex;gap:8px;margin:-6px 0 14px;"></div>
     <div class="row2">
-      <div class="field"><label>Próxima visita</label><input id="d-proxima" type="date" onchange="updateLeadField('proximaVisita', this.value)"></div>
+      <div class="field">
+        <label>Próxima visita</label>
+        <div class="date-input-wrap">
+          <input id="d-proxima" type="date" onchange="updateLeadField('proximaVisita', this.value)">
+          <button type="button" class="date-cal-btn" onclick="openDatePicker('d-proxima')" aria-label="Abrir calendario">📅</button>
+        </div>
+      </div>
       <div class="field">
         <label>Vendedor asignado</label>
         <select id="d-vendedor" onchange="reassignLead(this.value)" disabled></select>
@@ -664,6 +678,15 @@ function toast(msg, isErr=false){
   setTimeout(()=>{ t.remove(); }, 4200);
 }
 function $(id){ return document.getElementById(id); }
+window.openDatePicker = function(id){
+  const el = $(id);
+  if(!el) return;
+  if(typeof el.showPicker === 'function'){
+    try{ el.showPicker(); return; }catch(e){ /* fallback abajo */ }
+  }
+  el.focus();
+  el.click();
+};
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ---------------- spinner de carga en botones ---------------- */
@@ -824,7 +847,7 @@ function initAppShell(){
   $('user-role').textContent = currentUser.rol;
   $('btn-admin').style.display = currentUser.rol === 'admin' ? 'inline-block' : 'none';
   $('filter-vendedor').style.display = currentUser.rol === 'admin' ? 'block' : 'none';
-  $('btn-toggle-sidebar').style.display = window.innerWidth <= 820 ? 'inline-block' : 'none';
+  $('btn-toggle-sidebar').style.display = window.innerWidth <= 820 ? 'inline-flex' : 'none';
 
   if(!map) initMap();
   subscribeLeads();
@@ -1304,6 +1327,10 @@ window.setRol = async function(uid, rol){
 
 /* ================= SIDEBAR TOGGLE (mobile) ================= */
 window.toggleSidebar = function(){ $('sidebar').classList.toggle('show'); };
+window.addEventListener('resize', () => {
+  const btn = $('btn-toggle-sidebar');
+  if(btn) btn.style.display = window.innerWidth <= 820 ? 'inline-flex' : 'none';
+});
 
 /* ================= RUTAS (estilo Circuit) ================= */
 let pendingRouteSelection = new Set();
