@@ -1222,6 +1222,32 @@ function nearestNeighborOrder(start, stops){
   }
   return ordered;
 }
+// Ruta real por calles + orden óptimo, usando el servicio público y gratuito de OSRM (sin API key).
+// Si falla (sin internet, demasiadas paradas, servicio caído), devuelve null y el llamador
+// hace fallback a orden por vecino más cercano + línea recta.
+async function fetchRealRoute(start, stops){
+  try{
+    const coords = [start, ...stops].map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `https://router.project-osrm.org/trip/v1/driving/${coords}?source=first&roundtrip=false&overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('OSRM respondió ' + res.status);
+    const data = await res.json();
+    if(data.code !== 'Ok' || !data.trips || !data.trips.length) throw new Error('OSRM sin ruta');
+    const trip = data.trips[0];
+    const geometry = trip.geometry.coordinates.map(c => [c[1], c[0]]); // [lng,lat] -> [lat,lng]
+    // waypoints[0] es el punto de partida; el resto corresponde a 'stops' en su orden original de entrada
+    const stopWaypoints = data.waypoints.slice(1);
+    const orderedStops = stopWaypoints
+      .map((wp, i) => ({ i, order: wp.waypoint_index }))
+      .sort((a, b) => a.order - b.order)
+      .map(x => stops[x.i]);
+    const distanceKm = trip.distance / 1000;
+    const durationMin = trip.duration / 60;
+    return { orderedStops, geometry, distanceKm, durationMin };
+  }catch(e){
+    return null;
+  }
+}
 function pendingRoutableLeads(){
   return visibleLeads().filter(l => l.estado !== 'visitado' && l.lat && l.lng);
 }
@@ -1344,15 +1370,32 @@ window.createRoute = async function(){
   if(!pendingRouteStart){ toast('Ingresa o detecta tu punto de partida antes de crear la ruta.', true); return; }
   const stopsData = ids.map(id => leads[id]).filter(Boolean);
   const start = pendingRouteStart;
-  const ordered = nearestNeighborOrder(start, stopsData);
-  activeRoute = { stopIds: ordered.map(s => s.id), createdAt: Date.now(), startPoint: start };
+
+  const btn = document.querySelector('#route-builder-overlay .btn-primary');
+  const btnOriginal = btn.textContent;
+  btn.textContent = 'Calculando ruta real...'; btn.disabled = true;
+
+  const real = await fetchRealRoute(start, stopsData);
+  btn.textContent = btnOriginal; btn.disabled = false;
+
+  let orderedStops, geometry = null, summary = null;
+  if(real){
+    orderedStops = real.orderedStops;
+    geometry = real.geometry;
+    summary = { distanceKm: real.distanceKm, durationMin: real.durationMin };
+  }else{
+    orderedStops = nearestNeighborOrder(start, stopsData);
+    toast('No se pudo calcular la ruta real por calles; se muestra un trazado aproximado.', true);
+  }
+
+  activeRoute = { stopIds: orderedStops.map(s => s.id), createdAt: Date.now(), startPoint: start, geometry, summary };
   saveActiveRouteToStorage();
   updateRouteButtonLabel();
   closeRouteBuilder();
-  toast('Ruta creada con ' + ordered.length + ' sitio(s).');
+  toast('Ruta creada con ' + orderedStops.length + ' sitio(s)' + (real ? ` · ${real.distanceKm.toFixed(1)} km · ${Math.round(real.durationMin)} min` : '') + '.');
   syncRouteVisuals();
   openRoutePanel();
-  const first = ordered.find(s => leads[s.id] && leads[s.id].estado !== 'visitado');
+  const first = orderedStops.find(s => leads[s.id] && leads[s.id].estado !== 'visitado');
   if(first) selectLead(first.id);
 };
 function saveActiveRouteToStorage(){
@@ -1392,7 +1435,8 @@ function renderRoutePanel(){
   if(!activeRoute || !activeRoute.stopIds){ return; }
   const total = activeRoute.stopIds.length;
   const doneCount = activeRoute.stopIds.filter(id => leads[id] && leads[id].estado === 'visitado').length;
-  $('route-progress').textContent = `${doneCount} de ${total} visitados`;
+  $('route-progress').textContent = `${doneCount} de ${total} visitados` +
+    (activeRoute.summary ? ` · ${activeRoute.summary.distanceKm.toFixed(1)} km · ~${Math.round(activeRoute.summary.durationMin)} min` : '');
   const currentId = activeRoute.stopIds.find(id => leads[id] && leads[id].estado !== 'visitado');
   const list = $('route-stops-list');
   let html = activeRoute.stopIds.map((id, i) => {
@@ -1474,16 +1518,24 @@ function clearRoutePolyline(){
 function drawRoutePolyline(){
   clearRoutePolyline();
   if(!map || !activeRoute || !activeRoute.stopIds || !activeRoute.stopIds.length) return;
-  const points = [];
-  if(activeRoute.startPoint) points.push([activeRoute.startPoint.lat, activeRoute.startPoint.lng]);
-  activeRoute.stopIds.forEach(id => {
-    const l = leads[id];
-    if(l && l.lat && l.lng) points.push([l.lat, l.lng]);
-  });
+  let points;
+  let isRealRoad = false;
+  if(activeRoute.geometry && activeRoute.geometry.length > 1){
+    points = activeRoute.geometry;
+    isRealRoad = true;
+  }else{
+    points = [];
+    if(activeRoute.startPoint) points.push([activeRoute.startPoint.lat, activeRoute.startPoint.lng]);
+    activeRoute.stopIds.forEach(id => {
+      const l = leads[id];
+      if(l && l.lat && l.lng) points.push([l.lat, l.lng]);
+    });
+  }
   if(points.length < 2) return;
-  routePolyline = L.polyline(points, {
-    color: '#22E1FF', weight: 3, opacity: 0.75, dashArray: '2 10', lineCap: 'round',
-  }).addTo(map);
+  routePolyline = L.polyline(points, isRealRoad
+    ? { color: '#22E1FF', weight: 4, opacity: 0.85, lineCap: 'round', lineJoin: 'round' }
+    : { color: '#22E1FF', weight: 3, opacity: 0.6, dashArray: '2 10', lineCap: 'round' }
+  ).addTo(map);
 }
 function youAreHereIcon(){
   return L.divIcon({ html: '<div class="you-are-here-dot"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] });
