@@ -6,6 +6,8 @@
 <title>Visitas · Cybernetic</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
 :root{
   --bg:#0A0E13;
@@ -203,6 +205,14 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .admin-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
 .admin-table select{padding:5px 8px;font-size:12px;}
 
+.addr-suggestions{
+  position:absolute;top:100%;left:0;right:0;z-index:50;background:var(--surface-2);
+  border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;
+}
+.addr-suggestions div{padding:8px 12px;font-size:12.5px;cursor:pointer;border-bottom:1px solid var(--border);}
+.addr-suggestions div:last-child{border-bottom:none;}
+.addr-suggestions div:hover{background:var(--surface-3);color:var(--accent);}
+.leaflet-container{background:var(--bg) !important;}
 textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;}
 @media(max-width:820px){
   aside.sidebar{position:fixed;left:0;top:56px;bottom:0;z-index:15;transform:translateX(-100%);transition:.2s;box-shadow:var(--shadow);}
@@ -212,26 +222,6 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
 </style>
 </head>
 <body>
-
-<!-- ================= SETUP SCREEN ================= -->
-<div id="setup-screen" class="center-screen hidden">
-  <div class="card" style="width:480px;">
-    <div class="logo-mark"></div>
-    <h1>Configuración inicial</h1>
-    <p class="sub">Pega tu configuración de Firebase y tu API key de Google Maps. Se guardan solo en este navegador.</p>
-    <div class="field">
-      <label>Firebase config (objeto JS)</label>
-      <textarea id="cfg-firebase" class="config-input" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
-    </div>
-    <div class="field">
-      <label>Google Maps API key</label>
-      <input id="cfg-gmaps" type="text" placeholder="AIzaSy...">
-    </div>
-    <div class="err-msg" id="setup-err"></div>
-    <button class="btn btn-primary" style="width:100%;" onclick="saveSetup()">Guardar y continuar</button>
-    <p class="sub" style="margin:14px 0 0;font-size:12px;">La API key de Maps necesita tener habilitadas: Maps JavaScript API y Places API. Recuerda configurar las reglas de Firestore (ver comentario al final del código).</p>
-  </div>
-</div>
 
 <!-- ================= AUTH SCREEN ================= -->
 <div id="auth-screen" class="center-screen hidden">
@@ -370,7 +360,11 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
         <div class="field"><label>Contacto</label><input id="n-contacto" placeholder="Nombre del contacto"></div>
         <div class="field"><label>Teléfono</label><input id="n-telefono" placeholder="+56 9..."></div>
       </div>
-      <div class="field"><label>Dirección (buscar o ajustar)</label><input id="n-direccion" placeholder="Escribe una dirección..."></div>
+      <div class="field" style="position:relative;">
+        <label>Dirección (buscar o ajustar)</label>
+        <input id="n-direccion" placeholder="Escribe una dirección..." autocomplete="off">
+        <div id="addr-suggestions" class="addr-suggestions hidden"></div>
+      </div>
       <div class="field"><label>Estado inicial</label>
         <select id="n-estado">
           <option value="por_visitar">Por visitar</option>
@@ -418,15 +412,26 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 /* ---------------- estado / config ---------------- */
+// Config de Firebase ya integrada en el código — no hace falta pegarla cada vez.
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAGCSYG764spNqe06RlVVM8BNI8kHuhbec",
+  authDomain: "bislead-b16b9.firebaseapp.com",
+  projectId: "bislead-b16b9",
+  storageBucket: "bislead-b16b9.firebasestorage.app",
+  messagingSenderId: "705886214348",
+  appId: "1:705886214348:web:0a3ac5cb1d5fcae8ff4a69"
+};
+
 let firebaseApp, auth, db;
 let currentUser = null;      // { uid, email, nombre, rol }
 let leads = {};              // id -> lead
 let usuarios = {};           // uid -> {nombre, email, rol}
-let markers = {};            // id -> google.maps.Marker
-let map, placesAutocomplete;
+let markers = {};            // id -> L.marker
+let map;
 let selectedLeadId = null;
 let pendingNewCoords = null;
 let leadsUnsub = null, usersUnsub = null;
+let addrDebounce = null;
 
 const ESTADOS = {
   por_visitar:  { label: "Por visitar",      color: "#5B6673" },
@@ -437,23 +442,9 @@ const ESTADOS = {
   perdido:      { label: "Perdido",          color: "#FF5C5C" },
 };
 
-const DARK_MAP_STYLE = [
-  { elementType: "geometry", stylers: [{ color: "#12181F" }] },
-  { elementType: "labels.text.stroke", stylers: [{ color: "#12181F" }] },
-  { elementType: "labels.text.fill", stylers: [{ color: "#6B7684" }] },
-  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#A9B4C0" }] },
-  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#5B6673" }] },
-  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#152019" }] },
-  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1A222B" }] },
-  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#0F1419" }] },
-  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#5B6673" }] },
-  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#232D38" }] },
-  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#0F1419" }] },
-  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#8A97A6" }] },
-  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#1A222B" }] },
-  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0B1420" }] },
-  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3C4C5C" }] },
-];
+// Tiles oscuros de CARTO (gratuitos, sin API key) sobre datos de OpenStreetMap
+const DARK_TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const DARK_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
 /* ---------------- helpers ---------------- */
 function toast(msg, isErr=false){
@@ -476,42 +467,11 @@ function markerIcon(colorHex, selected){
     <rect x="3" y="3" width="18" height="18" rx="5" fill="${colorHex}" stroke="#0A0E13" stroke-width="2"/>
     <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#0A0E13" opacity="0.55"/>
   </svg>`;
-  return {
-    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
-    scaledSize: new google.maps.Size(size, size),
-    anchor: new google.maps.Point(size/2, size/2),
-  };
-}
-
-/* ================= SETUP (firebase config + maps key) ================= */
-function getSetup(){
-  try{
-    const raw = localStorage.getItem('visitas_setup');
-    return raw ? JSON.parse(raw) : null;
-  }catch(e){ return null; }
-}
-window.saveSetup = function(){
-  const fbRaw = $('cfg-firebase').value.trim();
-  const gkey = $('cfg-gmaps').value.trim();
-  const errEl = $('setup-err');
-  errEl.textContent = '';
-  let fbConfig;
-  try{ fbConfig = JSON.parse(fbRaw); }
-  catch(e){ errEl.textContent = 'El config de Firebase no es un JSON válido.'; return; }
-  if(!gkey){ errEl.textContent = 'Falta la API key de Google Maps.'; return; }
-  localStorage.setItem('visitas_setup', JSON.stringify({ firebase: fbConfig, gmapsKey: gkey }));
-  boot();
-};
-
-function loadGoogleMapsScript(key){
-  return new Promise((resolve, reject)=>{
-    if(window.google && window.google.maps){ resolve(); return; }
-    const s = document.createElement('script');
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places`;
-    s.async = true;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('No se pudo cargar Google Maps. Revisa la API key.'));
-    document.head.appendChild(s);
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2],
   });
 }
 
@@ -552,21 +512,12 @@ function friendlyAuthError(e){
 
 /* ================= BOOT ================= */
 async function boot(){
-  const setup = getSetup();
-  if(!setup){
-    $('setup-screen').classList.remove('hidden');
-    return;
-  }
-  $('setup-screen').classList.add('hidden');
   try{
-    firebaseApp = initializeApp(setup.firebase);
+    firebaseApp = initializeApp(FIREBASE_CONFIG);
     auth = getAuth(firebaseApp);
     db = getFirestore(firebaseApp);
-    await loadGoogleMapsScript(setup.gmapsKey);
   }catch(e){
-    toast(e.message, true);
-    localStorage.removeItem('visitas_setup');
-    $('setup-screen').classList.remove('hidden');
+    toast('Error inicializando Firebase: ' + e.message, true);
     return;
   }
 
@@ -604,28 +555,53 @@ function initAppShell(){
 }
 
 function initMap(){
-  map = new google.maps.Map($('map'), {
-    center: { lat: -33.4489, lng: -70.6693 }, // Santiago, Chile
-    zoom: 12,
-    styles: DARK_MAP_STYLE,
-    disableDefaultUI: true,
-    zoomControl: true,
-    fullscreenControl: false,
+  map = L.map('map', { zoomControl: true, attributionControl: true })
+    .setView([-33.4489, -70.6693], 12); // Santiago, Chile
+  L.tileLayer(DARK_TILE_URL, {
+    attribution: DARK_TILE_ATTRIBUTION,
+    subdomains: 'abcd',
+    maxZoom: 20,
+  }).addTo(map);
+
+  map.on('click', (e) => {
+    openNewLeadModal(e.latlng.lat, e.latlng.lng);
   });
-  map.addListener('click', (e) => {
-    openNewLeadModal(e.latLng.lat(), e.latLng.lng());
-  });
+
+  // Búsqueda de direcciones vía Nominatim (OpenStreetMap), sin API key.
   const acInput = $('n-direccion');
-  placesAutocomplete = new google.maps.places.Autocomplete(acInput, { fields: ['geometry','formatted_address'] });
-  placesAutocomplete.addListener('place_changed', () => {
-    const place = placesAutocomplete.getPlace();
-    if(place && place.geometry){
-      const lat = place.geometry.location.lat(), lng = place.geometry.location.lng();
-      pendingNewCoords = { lat, lng };
-      $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-      map.panTo({lat,lng}); map.setZoom(15);
-    }
+  const box = $('addr-suggestions');
+  acInput.addEventListener('input', () => {
+    clearTimeout(addrDebounce);
+    const q = acInput.value.trim();
+    if(q.length < 3){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    addrDebounce = setTimeout(() => searchAddress(q), 400);
   });
+  document.addEventListener('click', (e) => {
+    if(!box.contains(e.target) && e.target !== acInput){ box.classList.add('hidden'); }
+  });
+}
+
+async function searchAddress(q){
+  const box = $('addr-suggestions');
+  try{
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+    const results = await res.json();
+    if(!results.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
+    box.innerHTML = results.map((r,i)=>`<div data-i="${i}">${esc(r.display_name)}</div>`).join('');
+    box.classList.remove('hidden');
+    box.querySelectorAll('div').forEach((el,i)=>{
+      el.onclick = () => {
+        const r = results[i];
+        const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+        pendingNewCoords = { lat, lng };
+        $('n-direccion').value = r.display_name;
+        $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+        map.panTo([lat, lng]); map.setZoom(16);
+        box.classList.add('hidden');
+      };
+    });
+  }catch(e){ /* falla silenciosa de búsqueda, no bloquea el flujo */ }
 }
 
 /* ================= FIRESTORE: LEADS ================= */
@@ -719,21 +695,20 @@ function renderMarkers(){
   const list = visibleLeads();
   const ids = new Set(list.map(l=>l.id));
   Object.keys(markers).forEach(id=>{
-    if(!ids.has(id)){ markers[id].setMap(null); delete markers[id]; }
+    if(!ids.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
   });
   list.forEach(l=>{
     if(!l.lat || !l.lng) return;
     const st = ESTADOS[l.estado] || ESTADOS.por_visitar;
     if(markers[l.id]){
       markers[l.id].setIcon(markerIcon(st.color, l.id===selectedLeadId));
-      markers[l.id].setPosition({lat:l.lat,lng:l.lng});
+      markers[l.id].setLatLng([l.lat,l.lng]);
     }else{
-      const m = new google.maps.Marker({
-        position: {lat:l.lat,lng:l.lng}, map,
+      const m = L.marker([l.lat,l.lng], {
         icon: markerIcon(st.color, l.id===selectedLeadId),
         title: l.empresa,
-      });
-      m.addListener('click', ()=> selectLead(l.id));
+      }).addTo(map);
+      m.on('click', ()=> selectLead(l.id));
       markers[l.id] = m;
     }
   });
@@ -787,7 +762,7 @@ window.selectLead = function(id){
   fillPanel(l);
   $('panel-overlay').classList.add('show');
   $('lead-panel').classList.add('show');
-  if(l.lat && l.lng){ map.panTo({lat:l.lat,lng:l.lng}); }
+  if(l.lat && l.lng){ map.panTo([l.lat, l.lng]); }
 };
 window.closePanel = function(){
   $('panel-overlay').classList.remove('show');
