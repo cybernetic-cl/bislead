@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Visitas · Cybernetic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0E13;
+  --surface:#12181F;
+  --surface-2:#1A222B;
+  --surface-3:#212B36;
+  --border:#232D38;
+  --text:#E7ECF2;
+  --muted:#8A97A6;
+  --muted-2:#5B6673;
+  --accent:#22E1FF;
+  --accent-dim:#0E5C68;
+  --st-por-visitar:#5B6673;
+  --st-agendada:#4C8DFF;
+  --st-seguimiento:#F5A623;
+  --st-negociacion:#B98CFF;
+  --st-ganado:#33D17A;
+  --st-perdido:#FF5C5C;
+  --radius:10px;
+  --shadow:0 8px 24px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'JetBrains Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:8px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+/* ---------- utility ---------- */
+.hidden{display:none !important;}
+.btn{
+  background:var(--surface-3);color:var(--text);border:1px solid var(--border);
+  padding:10px 16px;border-radius:8px;font-size:14px;font-weight:600;
+  transition:.15s ease;
+}
+.btn:hover{border-color:var(--accent);color:var(--accent);}
+.btn-primary{background:var(--accent);color:#04262A;border:1px solid var(--accent);}
+.btn-primary:hover{background:#4CE9FF;color:#04262A;}
+.btn-danger{background:transparent;border:1px solid var(--st-perdido);color:var(--st-perdido);}
+.btn-danger:hover{background:var(--st-perdido);color:#2A0505;}
+.btn-ghost{background:transparent;border:1px solid transparent;color:var(--muted);}
+.btn-ghost:hover{color:var(--text);border-color:var(--border);}
+.btn-sm{padding:6px 10px;font-size:12.5px;border-radius:6px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+.field input,.field select,.field textarea{
+  width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+  padding:10px 12px;border-radius:8px;font-size:14px;outline:none;transition:.15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field textarea{resize:vertical;min-height:64px;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;}
+.toast{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--accent);padding:12px 16px;border-radius:8px;box-shadow:var(--shadow);font-size:13.5px;max-width:320px;animation:slidein .2s ease;}
+.toast.err{border-left-color:var(--st-perdido);}
+@keyframes slidein{from{transform:translateX(20px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* ---------- setup / auth screens ---------- */
+.center-screen{
+  height:100%;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 20% 20%,#0E1620 0%,var(--bg) 60%);
+}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  padding:36px;width:420px;max-width:92vw;box-shadow:var(--shadow);
+}
+.logo-mark{
+  width:40px;height:40px;border-radius:9px;background:var(--surface-3);
+  display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+  position:relative;border:1px solid var(--border);
+}
+.logo-mark::before,.logo-mark::after{
+  content:'';position:absolute;width:5px;height:5px;background:var(--accent);
+  top:13px;box-shadow:0 0 8px var(--accent);
+}
+.logo-mark::before{left:11px;}
+.logo-mark::after{right:11px;}
+.card h1{font-size:20px;margin:0 0 4px;}
+.card p.sub{color:var(--muted);font-size:13.5px;margin:0 0 24px;}
+.tabbar{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:9px;margin-bottom:22px;}
+.tabbar button{flex:1;background:transparent;border:none;color:var(--muted);padding:8px;border-radius:6px;font-size:13px;font-weight:600;}
+.tabbar button.active{background:var(--surface-3);color:var(--text);}
+.err-msg{color:var(--st-perdido);font-size:12.5px;margin-top:-6px;margin-bottom:12px;min-height:1px;}
+.link-btn{background:none;border:none;color:var(--accent);font-size:13px;padding:0;text-decoration:underline;}
+
+/* ---------- app shell ---------- */
+#app{height:100%;display:flex;flex-direction:column;}
+header.topbar{
+  height:56px;flex:0 0 56px;display:flex;align-items:center;gap:14px;
+  padding:0 16px;border-bottom:1px solid var(--border);background:var(--surface);z-index:20;
+}
+header.topbar .title{font-size:15px;font-weight:700;letter-spacing:.01em;}
+header.topbar .spacer{flex:1;}
+.user-chip{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--border);border-radius:20px;font-size:13px;}
+.avatar{width:22px;height:22px;border-radius:50%;background:var(--accent-dim);color:var(--accent);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.role-badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:10px;background:var(--surface-3);color:var(--muted);}
+
+.body-wrap{flex:1;display:flex;min-height:0;}
+aside.sidebar{
+  width:340px;flex:0 0 340px;border-right:1px solid var(--border);background:var(--surface);
+  display:flex;flex-direction:column;min-height:0;
+}
+.sidebar-head{padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;}
+.search-box{position:relative;}
+.search-box input{padding-left:34px;}
+.search-box svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.5;}
+.filter-row{display:flex;gap:8px;}
+.filter-row select{flex:1;font-size:12.5px;padding:8px 10px;}
+.stats-strip{display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);overflow-x:auto;}
+.stat-chip{flex:0 0 auto;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--muted);white-space:nowrap;}
+.stat-chip b{color:var(--text);font-size:13px;display:block;font-family:'Space Grotesk',sans-serif;}
+.lead-list{flex:1;overflow-y:auto;}
+.lead-item{
+  padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:.1s;
+}
+.lead-item:hover{background:var(--surface-2);}
+.lead-item.active{background:var(--surface-2);border-left:3px solid var(--accent);}
+.lead-item .li-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;}
+.lead-item .li-empresa{font-weight:600;font-size:13.5px;}
+.lead-item .li-meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.empty-state{padding:40px 20px;text-align:center;color:var(--muted-2);font-size:13px;}
+.dot{width:8px;height:8px;border-radius:2px;display:inline-block;flex:0 0 auto;}
+
+main.map-area{flex:1;position:relative;min-width:0;}
+#map{width:100%;height:100%;}
+.map-hint{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:8px 14px;font-size:12.5px;color:var(--muted);box-shadow:var(--shadow);
+  pointer-events:none;z-index:5;display:flex;align-items:center;gap:8px;
+}
+.map-hint kbd{background:var(--surface-3);border-radius:4px;padding:1px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);}
+.map-fab{
+  position:absolute;bottom:20px;right:20px;z-index:5;background:var(--accent);color:#04262A;
+  border:none;border-radius:12px;padding:12px 18px;font-weight:700;font-size:13.5px;
+  box-shadow:0 6px 20px rgba(34,225,255,.25);display:flex;align-items:center;gap:8px;
+}
+.legend{
+  position:absolute;bottom:20px;left:16px;z-index:5;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:10px 12px;box-shadow:var(--shadow);font-size:11.5px;
+}
+.legend-row{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--muted);}
+
+/* ---------- detail panel ---------- */
+.panel-overlay{
+  position:fixed;inset:0;background:rgba(4,6,9,.5);z-index:30;
+  opacity:0;pointer-events:none;transition:.2s;
+}
+.panel-overlay.show{opacity:1;pointer-events:auto;}
+.panel{
+  position:fixed;top:0;right:0;height:100%;width:420px;max-width:92vw;
+  background:var(--surface);border-left:1px solid var(--border);z-index:31;
+  transform:translateX(100%);transition:.22s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+}
+.panel.show{transform:translateX(0);}
+.panel-head{padding:18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.panel-body{flex:1;overflow-y:auto;padding:18px;}
+.panel-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px;}
+.close-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;}
+.close-x:hover{color:var(--text);background:var(--surface-3);}
+.section-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted-2);font-weight:700;margin:20px 0 10px;}
+.section-label:first-child{margin-top:0;}
+.timeline{display:flex;flex-direction:column;gap:12px;}
+.tl-item{display:flex;gap:10px;font-size:13px;}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:5px;flex:0 0 auto;}
+.tl-content{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;}
+.tl-meta{color:var(--muted-2);font-size:11px;margin-top:4px;}
+.note-add{display:flex;gap:8px;margin-top:10px;}
+.note-add textarea{flex:1;}
+
+/* ---------- modal (nuevo lead) ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(4,6,9,.6);z-index:40;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.15s;}
+.modal-overlay.show{opacity:1;pointer-events:auto;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:460px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);}
+.modal-head{padding:18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-body{padding:18px;overflow-y:auto;}
+.modal-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
+
+/* ---------- admin panel ---------- */
+.admin-table{width:100%;border-collapse:collapse;font-size:13px;}
+.admin-table th{text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);}
+.admin-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+.admin-table select{padding:5px 8px;font-size:12px;}
+
+textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;}
+@media(max-width:820px){
+  aside.sidebar{position:fixed;left:0;top:56px;bottom:0;z-index:15;transform:translateX(-100%);transition:.2s;box-shadow:var(--shadow);}
+  aside.sidebar.show{transform:translateX(0);}
+  .panel{width:100vw;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= SETUP SCREEN ================= -->
+<div id="setup-screen" class="center-screen hidden">
+  <div class="card" style="width:480px;">
+    <div class="logo-mark"></div>
+    <h1>Configuración inicial</h1>
+    <p class="sub">Pega tu configuración de Firebase y tu API key de Google Maps. Se guardan solo en este navegador.</p>
+    <div class="field">
+      <label>Firebase config (objeto JS)</label>
+      <textarea id="cfg-firebase" class="config-input" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+    </div>
+    <div class="field">
+      <label>Google Maps API key</label>
+      <input id="cfg-gmaps" type="text" placeholder="AIzaSy...">
+    </div>
+    <div class="err-msg" id="setup-err"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="saveSetup()">Guardar y continuar</button>
+    <p class="sub" style="margin:14px 0 0;font-size:12px;">La API key de Maps necesita tener habilitadas: Maps JavaScript API y Places API. Recuerda configurar las reglas de Firestore (ver comentario al final del código).</p>
+  </div>
+</div>
+
+<!-- ================= AUTH SCREEN ================= -->
+<div id="auth-screen" class="center-screen hidden">
+  <div class="card">
+    <div class="logo-mark"></div>
+    <h1>Visitas</h1>
+    <p class="sub">Mapa de visitas y gestión de leads para el equipo comercial.</p>
+    <div class="tabbar">
+      <button id="tab-login" class="active" onclick="switchAuthTab('login')">Iniciar sesión</button>
+      <button id="tab-register" onclick="switchAuthTab('register')">Crear cuenta</button>
+    </div>
+    <div id="login-form">
+      <div class="field"><label>Correo</label><input id="li-email" type="email" placeholder="tu@correo.cl"></div>
+      <div class="field"><label>Contraseña</label><input id="li-pass" type="password" placeholder="••••••••"></div>
+      <div class="err-msg" id="login-err"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="doLogin()">Entrar</button>
+    </div>
+    <div id="register-form" class="hidden">
+      <div class="field"><label>Nombre completo</label><input id="rg-nombre" type="text" placeholder="Nombre del vendedor"></div>
+      <div class="field"><label>Correo</label><input id="rg-email" type="email" placeholder="tu@correo.cl"></div>
+      <div class="field"><label>Contraseña</label><input id="rg-pass" type="password" placeholder="Mínimo 6 caracteres"></div>
+      <div class="err-msg" id="register-err"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="doRegister()">Crear cuenta</button>
+      <p class="sub" style="margin:12px 0 0;font-size:12px;">Las cuentas nuevas quedan como <b>vendedor</b>. Un administrador puede darte permisos de admin luego.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <button class="btn-ghost btn btn-sm" id="btn-toggle-sidebar" onclick="toggleSidebar()" style="display:none;">☰</button>
+    <div class="logo-mark" style="margin:0;width:30px;height:30px;"></div>
+    <div class="title">Visitas</div>
+    <div class="spacer"></div>
+    <button class="btn btn-ghost btn-sm" id="btn-admin" onclick="openAdmin()" style="display:none;">Panel admin</button>
+    <div class="user-chip">
+      <div class="avatar" id="user-avatar">?</div>
+      <span id="user-name">—</span>
+      <span class="role-badge" id="user-role">vendedor</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="doLogout()">Salir</button>
+  </header>
+
+  <div class="body-wrap">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <div class="search-box">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+          <input id="search-input" type="text" placeholder="Buscar empresa o contacto..." oninput="renderLeadList()">
+        </div>
+        <div class="filter-row">
+          <select id="filter-estado" onchange="renderLeadList()">
+            <option value="">Todos los estados</option>
+            <option value="por_visitar">Por visitar</option>
+            <option value="agendada">Visita agendada</option>
+            <option value="seguimiento">En seguimiento</option>
+            <option value="negociacion">Negociación</option>
+            <option value="ganado">Ganado</option>
+            <option value="perdido">Perdido</option>
+          </select>
+          <select id="filter-vendedor" onchange="renderLeadList()" style="display:none;">
+            <option value="">Todos los vendedores</option>
+          </select>
+        </div>
+      </div>
+      <div class="stats-strip" id="stats-strip"></div>
+      <div class="lead-list" id="lead-list"></div>
+    </aside>
+
+    <main class="map-area">
+      <div id="map"></div>
+      <div class="map-hint">Clic en el mapa para agregar un sitio <kbd>+</kbd></div>
+      <div class="legend" id="legend"></div>
+      <button class="map-fab" onclick="openNewLeadModal(null,null)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo sitio
+      </button>
+    </main>
+  </div>
+</div>
+
+<!-- ================= PANEL DETALLE LEAD ================= -->
+<div class="panel-overlay" id="panel-overlay" onclick="closePanel()"></div>
+<div class="panel" id="lead-panel">
+  <div class="panel-head">
+    <div>
+      <div style="font-size:11px;color:var(--muted-2);margin-bottom:4px;" class="mono" id="panel-id"></div>
+      <h2 id="panel-empresa" style="margin:0;font-size:18px;"></h2>
+    </div>
+    <button class="close-x" onclick="closePanel()">✕</button>
+  </div>
+  <div class="panel-body">
+    <div class="field">
+      <label>Estado</label>
+      <select id="d-estado" onchange="updateLeadField('estado', this.value)"></select>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Contacto</label><input id="d-contacto" onchange="updateLeadField('contacto', this.value)"></div>
+      <div class="field"><label>Teléfono</label><input id="d-telefono" onchange="updateLeadField('telefono', this.value)"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Email</label><input id="d-email" onchange="updateLeadField('email', this.value)"></div>
+      <div class="field"><label>Valor estimado (CLP)</label><input id="d-valor" type="number" onchange="updateLeadField('valor', Number(this.value)||0)"></div>
+    </div>
+    <div class="field"><label>Dirección</label><input id="d-direccion" onchange="updateLeadField('direccion', this.value)"></div>
+    <div class="row2">
+      <div class="field"><label>Próxima visita</label><input id="d-proxima" type="date" onchange="updateLeadField('proximaVisita', this.value)"></div>
+      <div class="field">
+        <label>Vendedor asignado</label>
+        <select id="d-vendedor" onchange="reassignLead(this.value)" disabled></select>
+      </div>
+    </div>
+    <div class="section-label">Bitácora</div>
+    <div class="note-add">
+      <textarea id="d-nota" placeholder="Agregar nota de la visita..."></textarea>
+      <button class="btn btn-primary btn-sm" onclick="addNota()" style="align-self:flex-end;">Agregar</button>
+    </div>
+    <div class="timeline" id="d-timeline" style="margin-top:14px;"></div>
+  </div>
+  <div class="panel-foot">
+    <button class="btn btn-danger btn-sm" onclick="deleteLead()">Eliminar sitio</button>
+  </div>
+</div>
+
+<!-- ================= MODAL NUEVO LEAD ================= -->
+<div class="modal-overlay" id="new-lead-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 style="margin:0;font-size:16px;">Nuevo sitio</h2>
+      <button class="close-x" onclick="closeNewLeadModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Empresa / sitio</label><input id="n-empresa" placeholder="Nombre de la empresa"></div>
+      <div class="row2">
+        <div class="field"><label>Contacto</label><input id="n-contacto" placeholder="Nombre del contacto"></div>
+        <div class="field"><label>Teléfono</label><input id="n-telefono" placeholder="+56 9..."></div>
+      </div>
+      <div class="field"><label>Dirección (buscar o ajustar)</label><input id="n-direccion" placeholder="Escribe una dirección..."></div>
+      <div class="field"><label>Estado inicial</label>
+        <select id="n-estado">
+          <option value="por_visitar">Por visitar</option>
+          <option value="agendada">Visita agendada</option>
+        </select>
+      </div>
+      <p class="sub" style="font-size:12px;">Coordenadas: <span class="mono" id="n-coords">—</span> · también puedes hacer clic en el mapa para reubicar.</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeNewLeadModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNewLead()">Guardar sitio</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL ADMIN ================= -->
+<div class="modal-overlay" id="admin-overlay">
+  <div class="modal" style="width:600px;">
+    <div class="modal-head">
+      <h2 style="margin:0;font-size:16px;">Panel de administración</h2>
+      <button class="close-x" onclick="closeAdmin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="section-label" style="margin-top:0;">Usuarios</div>
+      <table class="admin-table">
+        <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th></tr></thead>
+        <tbody id="admin-users-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAdmin()">Cerrar</button></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signOut, updateProfile
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc, collection,
+  onSnapshot, serverTimestamp, arrayUnion, query
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+/* ---------------- estado / config ---------------- */
+let firebaseApp, auth, db;
+let currentUser = null;      // { uid, email, nombre, rol }
+let leads = {};              // id -> lead
+let usuarios = {};           // uid -> {nombre, email, rol}
+let markers = {};            // id -> google.maps.Marker
+let map, placesAutocomplete;
+let selectedLeadId = null;
+let pendingNewCoords = null;
+let leadsUnsub = null, usersUnsub = null;
+
+const ESTADOS = {
+  por_visitar:  { label: "Por visitar",      color: "#5B6673" },
+  agendada:     { label: "Visita agendada",  color: "#4C8DFF" },
+  seguimiento:  { label: "En seguimiento",   color: "#F5A623" },
+  negociacion:  { label: "Negociación",      color: "#B98CFF" },
+  ganado:       { label: "Ganado",           color: "#33D17A" },
+  perdido:      { label: "Perdido",          color: "#FF5C5C" },
+};
+
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#12181F" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#12181F" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#6B7684" }] },
+  { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#A9B4C0" }] },
+  { featureType: "poi", elementType: "labels.text.fill", stylers: [{ color: "#5B6673" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#152019" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1A222B" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#0F1419" }] },
+  { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#5B6673" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#232D38" }] },
+  { featureType: "road.highway", elementType: "geometry.stroke", stylers: [{ color: "#0F1419" }] },
+  { featureType: "road.highway", elementType: "labels.text.fill", stylers: [{ color: "#8A97A6" }] },
+  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#1A222B" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0B1420" }] },
+  { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#3C4C5C" }] },
+];
+
+/* ---------------- helpers ---------------- */
+function toast(msg, isErr=false){
+  const wrap = document.getElementById('toast-wrap');
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.remove(); }, 4200);
+}
+function $(id){ return document.getElementById(id); }
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function initials(name){
+  if(!name) return '?';
+  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+}
+function markerIcon(colorHex, selected){
+  const size = selected ? 30 : 24;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 24 24">
+    <rect x="3" y="3" width="18" height="18" rx="5" fill="${colorHex}" stroke="#0A0E13" stroke-width="2"/>
+    <rect x="9" y="9" width="6" height="6" rx="1.5" fill="#0A0E13" opacity="0.55"/>
+  </svg>`;
+  return {
+    url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg),
+    scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(size/2, size/2),
+  };
+}
+
+/* ================= SETUP (firebase config + maps key) ================= */
+function getSetup(){
+  try{
+    const raw = localStorage.getItem('visitas_setup');
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+window.saveSetup = function(){
+  const fbRaw = $('cfg-firebase').value.trim();
+  const gkey = $('cfg-gmaps').value.trim();
+  const errEl = $('setup-err');
+  errEl.textContent = '';
+  let fbConfig;
+  try{ fbConfig = JSON.parse(fbRaw); }
+  catch(e){ errEl.textContent = 'El config de Firebase no es un JSON válido.'; return; }
+  if(!gkey){ errEl.textContent = 'Falta la API key de Google Maps.'; return; }
+  localStorage.setItem('visitas_setup', JSON.stringify({ firebase: fbConfig, gmapsKey: gkey }));
+  boot();
+};
+
+function loadGoogleMapsScript(key){
+  return new Promise((resolve, reject)=>{
+    if(window.google && window.google.maps){ resolve(); return; }
+    const s = document.createElement('script');
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places`;
+    s.async = true;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('No se pudo cargar Google Maps. Revisa la API key.'));
+    document.head.appendChild(s);
+  });
+}
+
+/* ================= AUTH ================= */
+window.switchAuthTab = function(which){
+  $('tab-login').classList.toggle('active', which==='login');
+  $('tab-register').classList.toggle('active', which==='register');
+  $('login-form').classList.toggle('hidden', which!=='login');
+  $('register-form').classList.toggle('hidden', which!=='register');
+};
+window.doLogin = async function(){
+  $('login-err').textContent = '';
+  try{
+    await signInWithEmailAndPassword(auth, $('li-email').value.trim(), $('li-pass').value);
+  }catch(e){ $('login-err').textContent = friendlyAuthError(e); }
+};
+window.doRegister = async function(){
+  $('register-err').textContent = '';
+  const nombre = $('rg-nombre').value.trim();
+  if(!nombre){ $('register-err').textContent = 'Ingresa tu nombre.'; return; }
+  try{
+    const cred = await createUserWithEmailAndPassword(auth, $('rg-email').value.trim(), $('rg-pass').value);
+    await updateProfile(cred.user, { displayName: nombre });
+    await setDoc(doc(db, 'usuarios', cred.user.uid), {
+      nombre, email: cred.user.email, rol: 'vendedor', creadoEn: serverTimestamp()
+    });
+  }catch(e){ $('register-err').textContent = friendlyAuthError(e); }
+};
+window.doLogout = async function(){ await signOut(auth); };
+function friendlyAuthError(e){
+  const c = e.code || '';
+  if(c.includes('user-not-found') || c.includes('wrong-password') || c.includes('invalid-credential')) return 'Correo o contraseña incorrectos.';
+  if(c.includes('email-already-in-use')) return 'Ese correo ya tiene una cuenta.';
+  if(c.includes('weak-password')) return 'La contraseña debe tener al menos 6 caracteres.';
+  if(c.includes('invalid-email')) return 'Correo inválido.';
+  return 'Ocurrió un error: ' + (e.message || c);
+}
+
+/* ================= BOOT ================= */
+async function boot(){
+  const setup = getSetup();
+  if(!setup){
+    $('setup-screen').classList.remove('hidden');
+    return;
+  }
+  $('setup-screen').classList.add('hidden');
+  try{
+    firebaseApp = initializeApp(setup.firebase);
+    auth = getAuth(firebaseApp);
+    db = getFirestore(firebaseApp);
+    await loadGoogleMapsScript(setup.gmapsKey);
+  }catch(e){
+    toast(e.message, true);
+    localStorage.removeItem('visitas_setup');
+    $('setup-screen').classList.remove('hidden');
+    return;
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if(leadsUnsub) leadsUnsub();
+    if(usersUnsub) usersUnsub();
+    if(!user){
+      currentUser = null;
+      $('app').classList.add('hidden');
+      $('auth-screen').classList.remove('hidden');
+      return;
+    }
+    const snap = await getDoc(doc(db, 'usuarios', user.uid));
+    const data = snap.exists() ? snap.data() : { nombre: user.displayName || user.email, rol: 'vendedor' };
+    currentUser = { uid: user.uid, email: user.email, nombre: data.nombre, rol: data.rol || 'vendedor' };
+    $('auth-screen').classList.add('hidden');
+    $('app').classList.remove('hidden');
+    initAppShell();
+  });
+}
+
+/* ================= APP SHELL ================= */
+function initAppShell(){
+  $('user-name').textContent = currentUser.nombre;
+  $('user-avatar').textContent = initials(currentUser.nombre);
+  $('user-role').textContent = currentUser.rol;
+  $('btn-admin').style.display = currentUser.rol === 'admin' ? 'inline-block' : 'none';
+  $('filter-vendedor').style.display = currentUser.rol === 'admin' ? 'block' : 'none';
+  $('btn-toggle-sidebar').style.display = window.innerWidth <= 820 ? 'inline-block' : 'none';
+
+  if(!map) initMap();
+  subscribeLeads();
+  if(currentUser.rol === 'admin') subscribeUsuarios();
+  renderLegend();
+}
+
+function initMap(){
+  map = new google.maps.Map($('map'), {
+    center: { lat: -33.4489, lng: -70.6693 }, // Santiago, Chile
+    zoom: 12,
+    styles: DARK_MAP_STYLE,
+    disableDefaultUI: true,
+    zoomControl: true,
+    fullscreenControl: false,
+  });
+  map.addListener('click', (e) => {
+    openNewLeadModal(e.latLng.lat(), e.latLng.lng());
+  });
+  const acInput = $('n-direccion');
+  placesAutocomplete = new google.maps.places.Autocomplete(acInput, { fields: ['geometry','formatted_address'] });
+  placesAutocomplete.addListener('place_changed', () => {
+    const place = placesAutocomplete.getPlace();
+    if(place && place.geometry){
+      const lat = place.geometry.location.lat(), lng = place.geometry.location.lng();
+      pendingNewCoords = { lat, lng };
+      $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      map.panTo({lat,lng}); map.setZoom(15);
+    }
+  });
+}
+
+/* ================= FIRESTORE: LEADS ================= */
+function subscribeLeads(){
+  const ref = collection(db, 'leads');
+  leadsUnsub = onSnapshot(query(ref), (snap) => {
+    leads = {};
+    snap.forEach(d => { leads[d.id] = { id: d.id, ...d.data() }; });
+    renderLeadList();
+    renderMarkers();
+    renderStats();
+    if(selectedLeadId && leads[selectedLeadId]) fillPanel(leads[selectedLeadId]);
+  }, (err) => toast('Error leyendo leads: ' + err.message, true));
+}
+function subscribeUsuarios(){
+  usersUnsub = onSnapshot(collection(db, 'usuarios'), (snap) => {
+    usuarios = {};
+    snap.forEach(d => { usuarios[d.id] = { id: d.id, ...d.data() }; });
+    fillVendorFilter();
+    fillAdminTable();
+    if(selectedLeadId && leads[selectedLeadId]) fillVendorSelectInPanel(leads[selectedLeadId]);
+  });
+}
+function visibleLeads(){
+  return Object.values(leads).filter(l => currentUser.rol === 'admin' ? true : l.vendedorId === currentUser.uid);
+}
+function filteredLeads(){
+  const q = ($('search-input').value || '').toLowerCase();
+  const est = $('filter-estado').value;
+  const vend = currentUser.rol === 'admin' ? $('filter-vendedor').value : '';
+  return visibleLeads().filter(l=>{
+    if(est && l.estado !== est) return false;
+    if(vend && l.vendedorId !== vend) return false;
+    if(q && !(`${l.empresa||''} ${l.contacto||''}`).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=> (b.actualizadoEnMs||0) - (a.actualizadoEnMs||0));
+}
+
+/* ================= RENDER: SIDEBAR LIST ================= */
+window.renderLeadList = function(){
+  const list = filteredLeads();
+  const el = $('lead-list');
+  if(list.length === 0){
+    el.innerHTML = '<div class="empty-state">Sin sitios que coincidan.<br>Haz clic en el mapa para agregar uno.</div>';
+    return;
+  }
+  el.innerHTML = list.map(l=>{
+    const st = ESTADOS[l.estado] || ESTADOS.por_visitar;
+    const vendedorNombre = usuarios[l.vendedorId]?.nombre || l.vendedorNombre || '';
+    return `<div class="lead-item ${l.id===selectedLeadId?'active':''}" onclick="selectLead('${l.id}')">
+      <div class="li-top">
+        <div class="li-empresa">${esc(l.empresa)}</div>
+        <span class="dot" style="background:${st.color}"></span>
+      </div>
+      <div class="li-meta">
+        <span>${st.label}</span>
+        ${currentUser.rol==='admin' && vendedorNombre ? `<span>· ${esc(vendedorNombre)}</span>`:''}
+        ${l.proximaVisita ? `<span>· ${esc(l.proximaVisita)}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+};
+
+function renderStats(){
+  const list = visibleLeads();
+  const counts = {};
+  Object.keys(ESTADOS).forEach(k=>counts[k]=0);
+  list.forEach(l=>{ if(counts[l.estado]!==undefined) counts[l.estado]++; });
+  const strip = $('stats-strip');
+  strip.innerHTML = `<div class="stat-chip"><b>${list.length}</b>Total</div>` +
+    Object.entries(ESTADOS).map(([k,v])=>`<div class="stat-chip"><b>${counts[k]}</b>${v.label}</div>`).join('');
+}
+function renderLegend(){
+  $('legend').innerHTML = Object.values(ESTADOS).map(v=>
+    `<div class="legend-row"><span class="dot" style="background:${v.color}"></span>${v.label}</div>`
+  ).join('');
+}
+function fillVendorFilter(){
+  if(currentUser.rol !== 'admin') return;
+  const sel = $('filter-vendedor');
+  const current = sel.value;
+  const vendedores = Object.values(usuarios).filter(u=>u.rol==='vendedor' || u.rol==='admin');
+  sel.innerHTML = '<option value="">Todos los vendedores</option>' +
+    vendedores.map(u=>`<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
+  sel.value = current;
+}
+
+/* ================= RENDER: MARKERS ================= */
+function renderMarkers(){
+  if(!map) return;
+  const list = visibleLeads();
+  const ids = new Set(list.map(l=>l.id));
+  Object.keys(markers).forEach(id=>{
+    if(!ids.has(id)){ markers[id].setMap(null); delete markers[id]; }
+  });
+  list.forEach(l=>{
+    if(!l.lat || !l.lng) return;
+    const st = ESTADOS[l.estado] || ESTADOS.por_visitar;
+    if(markers[l.id]){
+      markers[l.id].setIcon(markerIcon(st.color, l.id===selectedLeadId));
+      markers[l.id].setPosition({lat:l.lat,lng:l.lng});
+    }else{
+      const m = new google.maps.Marker({
+        position: {lat:l.lat,lng:l.lng}, map,
+        icon: markerIcon(st.color, l.id===selectedLeadId),
+        title: l.empresa,
+      });
+      m.addListener('click', ()=> selectLead(l.id));
+      markers[l.id] = m;
+    }
+  });
+}
+
+/* ================= NEW LEAD MODAL ================= */
+window.openNewLeadModal = function(lat, lng){
+  pendingNewCoords = (lat!=null && lng!=null) ? {lat,lng} : null;
+  $('n-empresa').value=''; $('n-contacto').value=''; $('n-telefono').value='';
+  $('n-direccion').value=''; $('n-estado').value='por_visitar';
+  $('n-coords').textContent = pendingNewCoords ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '— (usa la búsqueda de dirección)';
+  $('new-lead-overlay').classList.add('show');
+};
+window.closeNewLeadModal = function(){ $('new-lead-overlay').classList.remove('show'); };
+window.saveNewLead = async function(){
+  const empresa = $('n-empresa').value.trim();
+  if(!empresa){ toast('Ingresa el nombre de la empresa o sitio.', true); return; }
+  if(!pendingNewCoords){ toast('Selecciona una ubicación en el mapa o busca una dirección.', true); return; }
+  const id = 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  const payload = {
+    empresa,
+    contacto: $('n-contacto').value.trim(),
+    telefono: $('n-telefono').value.trim(),
+    email: '',
+    direccion: $('n-direccion').value.trim(),
+    lat: pendingNewCoords.lat, lng: pendingNewCoords.lng,
+    estado: $('n-estado').value,
+    valor: 0,
+    proximaVisita: '',
+    vendedorId: currentUser.uid,
+    vendedorNombre: currentUser.nombre,
+    notas: [],
+    creadoEn: serverTimestamp(),
+    actualizadoEnMs: Date.now(),
+  };
+  try{
+    await setDoc(doc(db, 'leads', id), payload);
+    closeNewLeadModal();
+    toast('Sitio agregado.');
+    selectLead(id);
+  }catch(e){ toast('Error guardando: ' + e.message, true); }
+};
+
+/* ================= LEAD DETAIL PANEL ================= */
+window.selectLead = function(id){
+  selectedLeadId = id;
+  renderLeadList();
+  renderMarkers();
+  const l = leads[id];
+  if(!l) return;
+  fillPanel(l);
+  $('panel-overlay').classList.add('show');
+  $('lead-panel').classList.add('show');
+  if(l.lat && l.lng){ map.panTo({lat:l.lat,lng:l.lng}); }
+};
+window.closePanel = function(){
+  $('panel-overlay').classList.remove('show');
+  $('lead-panel').classList.remove('show');
+  const wasSelected = selectedLeadId;
+  selectedLeadId = null;
+  renderLeadList();
+  renderMarkers();
+};
+function fillPanel(l){
+  $('panel-id').textContent = l.id;
+  $('panel-empresa').textContent = l.empresa;
+  const sel = $('d-estado');
+  sel.innerHTML = Object.entries(ESTADOS).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+  sel.value = l.estado;
+  $('d-contacto').value = l.contacto || '';
+  $('d-telefono').value = l.telefono || '';
+  $('d-email').value = l.email || '';
+  $('d-valor').value = l.valor || 0;
+  $('d-direccion').value = l.direccion || '';
+  $('d-proxima').value = l.proximaVisita || '';
+  fillVendorSelectInPanel(l);
+  const tl = (l.notas || []).slice().reverse();
+  $('d-timeline').innerHTML = tl.length ? tl.map(n=>`
+    <div class="tl-item"><div class="tl-dot"></div>
+      <div class="tl-content">${esc(n.texto)}<div class="tl-meta">${esc(n.autor||'')} · ${n.fecha ? new Date(n.fecha).toLocaleString('es-CL') : ''}</div></div>
+    </div>`).join('') : '<div class="empty-state" style="padding:16px 0;">Sin notas todavía.</div>';
+}
+function fillVendorSelectInPanel(l){
+  const sel = $('d-vendedor');
+  const vendedores = Object.values(usuarios).filter(u=>u.rol==='vendedor' || u.rol==='admin');
+  if(currentUser.rol === 'admin' && vendedores.length){
+    sel.disabled = false;
+    sel.innerHTML = vendedores.map(u=>`<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
+    sel.value = l.vendedorId;
+  }else{
+    sel.disabled = true;
+    sel.innerHTML = `<option>${esc(usuarios[l.vendedorId]?.nombre || l.vendedorNombre || '—')}</option>`;
+  }
+}
+window.updateLeadField = async function(field, value){
+  if(!selectedLeadId) return;
+  try{
+    await updateDoc(doc(db, 'leads', selectedLeadId), { [field]: value, actualizadoEnMs: Date.now() });
+  }catch(e){ toast('Error guardando cambio: ' + e.message, true); }
+};
+window.reassignLead = async function(vendedorId){
+  if(!selectedLeadId || currentUser.rol !== 'admin') return;
+  const nombre = usuarios[vendedorId]?.nombre || '';
+  try{
+    await updateDoc(doc(db, 'leads', selectedLeadId), { vendedorId, vendedorNombre: nombre, actualizadoEnMs: Date.now() });
+    toast('Sitio reasignado a ' + nombre);
+  }catch(e){ toast('Error reasignando: ' + e.message, true); }
+};
+window.addNota = async function(){
+  const txt = $('d-nota').value.trim();
+  if(!txt || !selectedLeadId) return;
+  try{
+    await updateDoc(doc(db, 'leads', selectedLeadId), {
+      notas: arrayUnion({ texto: txt, autor: currentUser.nombre, fecha: Date.now() }),
+      actualizadoEnMs: Date.now(),
+    });
+    $('d-nota').value = '';
+  }catch(e){ toast('Error agregando nota: ' + e.message, true); }
+};
+window.deleteLead = async function(){
+  if(!selectedLeadId) return;
+  if(!confirm('¿Eliminar este sitio y todo su historial? Esta acción no se puede deshacer.')) return;
+  try{
+    await deleteDoc(doc(db, 'leads', selectedLeadId));
+    closePanel();
+    toast('Sitio eliminado.');
+  }catch(e){ toast('Error eliminando: ' + e.message, true); }
+};
+
+/* ================= ADMIN PANEL ================= */
+window.openAdmin = function(){ $('admin-overlay').classList.add('show'); fillAdminTable(); };
+window.closeAdmin = function(){ $('admin-overlay').classList.remove('show'); };
+function fillAdminTable(){
+  if(currentUser.rol !== 'admin') return;
+  const body = $('admin-users-body');
+  const list = Object.values(usuarios);
+  body.innerHTML = list.map(u=>`
+    <tr>
+      <td>${esc(u.nombre)}</td>
+      <td class="mono" style="font-size:11.5px;">${esc(u.email)}</td>
+      <td>
+        <select onchange="setRol('${u.id}', this.value)">
+          <option value="vendedor" ${u.rol==='vendedor'?'selected':''}>Vendedor</option>
+          <option value="admin" ${u.rol==='admin'?'selected':''}>Admin</option>
+        </select>
+      </td>
+    </tr>`).join('');
+}
+window.setRol = async function(uid, rol){
+  try{
+    await updateDoc(doc(db, 'usuarios', uid), { rol });
+    toast('Rol actualizado.');
+  }catch(e){ toast('Error actualizando rol: ' + e.message, true); }
+};
+
+/* ================= SIDEBAR TOGGLE (mobile) ================= */
+window.toggleSidebar = function(){ $('sidebar').classList.toggle('show'); };
+
+boot();
+</script>
+
+<!--
+  =========================================================================
+  REGLAS DE FIRESTORE RECOMENDADAS (pégalas en Firebase Console > Firestore
+  > Reglas). Ajusta según tus necesidades de seguridad:
+
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      function isSignedIn() { return request.auth != null; }
+      function isAdmin() {
+        return isSignedIn() &&
+          get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'admin';
+      }
+      match /usuarios/{uid} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && request.auth.uid == uid;
+        allow update: if isAdmin() || (isSignedIn() && request.auth.uid == uid && request.resource.data.rol == resource.data.rol);
+      }
+      match /leads/{leadId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update, delete: if isAdmin() || (isSignedIn() && resource.data.vendedorId == request.auth.uid);
+      }
+    }
+  }
+  =========================================================================
+-->
+</body>
+</html>
