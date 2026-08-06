@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0A0E13">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -78,6 +78,19 @@ input,select,textarea{font-family:inherit;}
 .field input::placeholder,.field textarea::placeholder{color:var(--muted-2);}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:var(--surface-2);box-shadow:0 0 0 3px rgba(34,225,255,.12);}
 .field textarea{resize:vertical;min-height:64px;}
+.field input[type="date"]{position:relative;color-scheme:dark;}
+.field input[type="date"]::-webkit-calendar-picker-indicator{
+  filter:invert(1) brightness(1.6);opacity:.85;cursor:pointer;
+  padding:4px;border-radius:5px;margin-right:-4px;transition:.15s;
+}
+.field input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;background:var(--surface-3);}
+.spinner{
+  display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.35);
+  border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:-2px;margin-right:7px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.btn[disabled]{opacity:.8;cursor:default;}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
 .toast-wrap{position:fixed;bottom:20px;right:20px;z-index:3000;display:flex;flex-direction:column;gap:8px;}
@@ -130,7 +143,7 @@ header.topbar .spacer{flex:1;}
 .body-wrap{flex:1;display:flex;min-height:0;}
 aside.sidebar{
   width:340px;flex:0 0 340px;border-right:1px solid var(--border);background:var(--surface);
-  display:flex;flex-direction:column;min-height:0;
+  display:flex;flex-direction:column;min-height:0;touch-action:pan-y;
 }
 .sidebar-head{padding:14px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:10px;}
 .search-box{position:relative;}
@@ -203,7 +216,7 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .panel.show{transform:translateX(0);}
 .panel-left{right:auto;left:0;border-left:none;border-right:1px solid var(--border);transform:translateX(-100%);}
 .panel-head{padding:18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
-.panel-body{flex:1;overflow-y:auto;padding:18px;}
+.panel-body{flex:1;overflow-y:auto;padding:18px;touch-action:pan-y;}
 .panel-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px;}
 .close-x{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;border-radius:6px;}
 .close-x:hover{color:var(--text);background:var(--surface-3);}
@@ -219,11 +232,11 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .note-add button{align-self:flex-end;min-width:96px;}
 
 /* ---------- modal (nuevo lead) ---------- */
-.modal-overlay{position:fixed;inset:0;background:rgba(4,6,9,.6);z-index:2040;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.15s;}
+.modal-overlay{position:fixed;inset:0;background:rgba(4,6,9,.6);z-index:2040;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.15s;touch-action:pan-y;}
 .modal-overlay.show{opacity:1;pointer-events:auto;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;width:460px;max-width:92vw;max-height:88vh;display:flex;flex-direction:column;box-shadow:var(--shadow);}
 .modal-head{padding:18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
-.modal-body{padding:18px;overflow-y:auto;}
+.modal-body{padding:18px;overflow-y:auto;touch-action:pan-y;}
 .modal-foot{padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;}
 
 /* ---------- admin panel ---------- */
@@ -266,6 +279,24 @@ main.map-area{flex:1;position:relative;min-width:0;}
   animation:yahPulse 1.8s ease-out infinite;
 }
 @keyframes yahPulse{0%{transform:scale(.4);opacity:.9;}100%{transform:scale(1.8);opacity:0;}}
+.yah-wrap{width:26px;height:26px;display:flex;align-items:center;justify-content:center;position:relative;}
+.yah-wrap::after{
+  content:'';position:absolute;width:26px;height:26px;border-radius:50%;background:rgba(76,141,255,.25);
+  animation:yahPulse 1.8s ease-out infinite;
+}
+.you-are-here-arrow{
+  width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;
+  border-bottom:16px solid #4C8DFF;filter:drop-shadow(0 1px 3px rgba(0,0,0,.6));
+  transition:transform .35s ease;transform-origin:50% 65%;position:relative;z-index:1;
+}
+.start-flag{font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6));}
+.nav-start-btn{width:100%;}
+.nav-active-badge{
+  display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--accent);
+  border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--accent);font-weight:600;
+}
+.nav-active-badge .pulse-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:navPulse 1.5s ease-in-out infinite;}
+@keyframes navPulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
 .addr-suggestions{
   position:absolute;top:100%;left:0;right:0;z-index:2050;background:var(--surface-2);
@@ -309,14 +340,14 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
       <div class="field"><label>Correo</label><input id="li-email" type="email" placeholder="tu@correo.cl"></div>
       <div class="field"><label>Contraseña</label><input id="li-pass" type="password" placeholder="••••••••"></div>
       <div class="err-msg" id="login-err"></div>
-      <button class="btn btn-primary" style="width:100%;" onclick="doLogin()">Entrar</button>
+      <button class="btn btn-primary" style="width:100%;" onclick="doLogin()" id="btn-login">Entrar</button>
     </div>
     <div id="register-form" class="hidden">
       <div class="field"><label>Nombre completo</label><input id="rg-nombre" type="text" placeholder="Nombre del vendedor"></div>
       <div class="field"><label>Correo</label><input id="rg-email" type="email" placeholder="tu@correo.cl"></div>
       <div class="field"><label>Contraseña</label><input id="rg-pass" type="password" placeholder="Mínimo 6 caracteres"></div>
       <div class="err-msg" id="register-err"></div>
-      <button class="btn btn-primary" style="width:100%;" onclick="doRegister()">Crear cuenta</button>
+      <button class="btn btn-primary" style="width:100%;" onclick="doRegister()" id="btn-register">Crear cuenta</button>
       <p class="sub" style="margin:12px 0 0;font-size:12px;">Las cuentas nuevas quedan como <b>vendedor</b>. Un administrador puede darte permisos de admin luego.</p>
     </div>
   </div>
@@ -466,7 +497,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeNewLeadModal()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveNewLead()">Guardar sitio</button>
+      <button class="btn btn-primary" onclick="saveNewLead()" id="btn-save-new-lead">Guardar sitio</button>
     </div>
   </div>
 </div>
@@ -490,7 +521,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeCompleteVisit()">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveCompleteVisit()">Guardar y marcar visitado</button>
+      <button class="btn btn-primary" onclick="saveCompleteVisit()" id="btn-save-complete-visit">Guardar y marcar visitado</button>
     </div>
   </div>
 </div>
@@ -527,7 +558,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeRouteBuilder()">Cancelar</button>
-      <button class="btn btn-primary" onclick="createRoute()">Crear ruta óptima</button>
+      <button class="btn btn-primary" onclick="createRoute()" id="btn-create-route">Crear ruta óptima</button>
     </div>
   </div>
 </div>
@@ -542,6 +573,7 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     </div>
     <button class="close-x" onclick="closeRoutePanel()">✕</button>
   </div>
+  <div id="route-nav-control" style="padding:14px 18px;border-bottom:1px solid var(--border);"></div>
   <div class="panel-body" id="route-stops-list"></div>
   <div class="panel-foot">
     <button class="btn btn-danger btn-sm" onclick="finishRoute()">Finalizar ruta</button>
@@ -603,6 +635,7 @@ let leadsUnsub = null, usersUnsub = null;
 let addrDebounce = null;
 let activeRoute = null;      // { stopIds: [...], createdAt, startPoint }
 let routePolyline = null;
+let startMarker = null;
 let youAreHereMarker = null;
 let geoWatchId = null;
 let arrivalShownForStopId = null;
@@ -629,6 +662,61 @@ function toast(msg, isErr=false){
 }
 function $(id){ return document.getElementById(id); }
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------------- spinner de carga en botones ---------------- */
+function setBtnLoading(btn, label){
+  if(!btn || btn.dataset.loading === '1') return;
+  btn.dataset.loading = '1';
+  btn.dataset.originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span>${esc(label || 'Procesando...')}`;
+}
+function clearBtnLoading(btn){
+  if(!btn || btn.dataset.loading !== '1') return;
+  btn.innerHTML = btn.dataset.originalHtml;
+  delete btn.dataset.originalHtml;
+  delete btn.dataset.loading;
+  btn.disabled = false;
+}
+
+/* ---------------- soniditos (Web Audio, sin archivos externos) ---------------- */
+let audioCtx = null;
+function getAudioCtx(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }catch(e){ return null; }
+}
+function beep(freq, startOffset, duration, gainPeak){
+  const ctx = getAudioCtx();
+  if(!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+  gain.gain.setValueAtTime(0, ctx.currentTime + startOffset);
+  gain.gain.linearRampToValueAtTime(gainPeak || 0.15, ctx.currentTime + startOffset + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startOffset + duration);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(ctx.currentTime + startOffset);
+  osc.stop(ctx.currentTime + startOffset + duration + 0.05);
+}
+function playSound(kind){
+  try{
+    if(kind === 'start'){
+      beep(523.25, 0, 0.12);    // C5
+      beep(783.99, 0.12, 0.18); // G5
+    }else if(kind === 'finish'){
+      beep(783.99, 0, 0.13);
+      beep(659.25, 0.12, 0.13);
+      beep(523.25, 0.24, 0.24);
+    }else if(kind === 'arrival'){
+      beep(880, 0, 0.09);
+      beep(1046.5, 0.1, 0.2);
+    }
+  }catch(e){ /* Web Audio no disponible o bloqueado por el navegador; se ignora */ }
+}
 function initials(name){
   if(!name) return '?';
   return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -656,14 +744,19 @@ window.switchAuthTab = function(which){
 };
 window.doLogin = async function(){
   $('login-err').textContent = '';
+  const btn = $('btn-login');
+  setBtnLoading(btn, 'Entrando...');
   try{
     await signInWithEmailAndPassword(auth, $('li-email').value.trim(), $('li-pass').value);
   }catch(e){ $('login-err').textContent = friendlyAuthError(e); }
+  finally{ clearBtnLoading(btn); }
 };
 window.doRegister = async function(){
   $('register-err').textContent = '';
   const nombre = $('rg-nombre').value.trim();
   if(!nombre){ $('register-err').textContent = 'Ingresa tu nombre.'; return; }
+  const btn = $('btn-register');
+  setBtnLoading(btn, 'Creando cuenta...');
   try{
     const cred = await createUserWithEmailAndPassword(auth, $('rg-email').value.trim(), $('rg-pass').value);
     await updateProfile(cred.user, { displayName: nombre });
@@ -671,6 +764,7 @@ window.doRegister = async function(){
       nombre, email: cred.user.email, rol: 'vendedor', creadoEn: serverTimestamp()
     });
   }catch(e){ $('register-err').textContent = friendlyAuthError(e); }
+  finally{ clearBtnLoading(btn); }
 };
 window.doLogout = async function(){ stopLiveTracking(); clearRoutePolyline(); await signOut(auth); };
 function friendlyAuthError(e){
@@ -819,15 +913,13 @@ window.useMyLocation = function(){
   if(!navigator.geolocation){ toast('Tu navegador no soporta geolocalización.', true); return; }
   warnIfGeoBlocked();
   const btn = $('btn-my-location');
-  const original = btn.textContent;
-  btn.textContent = 'Buscando ubicación...';
-  btn.disabled = true;
+  setBtnLoading(btn, 'Buscando ubicación...');
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const lat = pos.coords.latitude, lng = pos.coords.longitude;
     pendingNewCoords = { lat, lng };
     $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
     map.panTo([lat, lng]); map.setZoom(16);
-    btn.textContent = original; btn.disabled = false;
+    clearBtnLoading(btn);
     try{
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${lat}&lon=${lng}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
@@ -839,7 +931,7 @@ window.useMyLocation = function(){
       }
     }catch(e){ /* reverse geocode es best-effort */ }
   }, (err) => {
-    btn.textContent = original; btn.disabled = false;
+    clearBtnLoading(btn);
     toast(describeGeoError(err), true);
   }, { enableHighAccuracy: true, timeout: 8000 });
 };
@@ -999,10 +1091,14 @@ window.saveNewLead = async function(){
     actualizadoEnMs: Date.now(),
   };
   try{
-    await setDoc(doc(db, 'leads', id), payload);
-    closeNewLeadModal();
-    toast('Sitio agregado.');
-    selectLead(id);
+    const btn = $('btn-save-new-lead');
+    setBtnLoading(btn, 'Guardando...');
+    try{
+      await setDoc(doc(db, 'leads', id), payload);
+      closeNewLeadModal();
+      toast('Sitio agregado.');
+      selectLead(id);
+    }finally{ clearBtnLoading(btn); }
   }catch(e){ toast('Error guardando: ' + e.message, true); }
 };
 
@@ -1113,6 +1209,8 @@ window.saveCompleteVisit = async function(){
     payload.notas = arrayUnion({ texto: notaTexto, autor: currentUser.nombre, fecha: Date.now() });
   }
   const justVisitedId = selectedLeadId;
+  const btn = $('btn-save-complete-visit');
+  setBtnLoading(btn, 'Guardando...');
   try{
     await updateDoc(doc(db, 'leads', justVisitedId), payload);
     $('complete-visit-overlay').classList.remove('show');
@@ -1125,6 +1223,7 @@ window.saveCompleteVisit = async function(){
       showRouteNextCard(justVisitedId);
     }
   }catch(e){ toast('Error guardando la visita: ' + e.message, true); }
+  finally{ clearBtnLoading(btn); }
 };
 window.reassignLead = async function(vendedorId){
   if(!selectedLeadId || currentUser.rol !== 'admin') return;
@@ -1307,13 +1406,12 @@ window.useRouteStartLocation = function(){
   if(!navigator.geolocation){ toast('Tu navegador no soporta geolocalización.', true); return; }
   warnIfGeoBlocked();
   const btn = $('btn-rb-location');
-  const original = btn.textContent;
-  btn.textContent = 'Buscando ubicación...'; btn.disabled = true;
+  setBtnLoading(btn, 'Buscando ubicación...');
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const lat = pos.coords.latitude, lng = pos.coords.longitude;
     pendingRouteStart = { lat, lng };
     $('rb-start-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
-    btn.textContent = original; btn.disabled = false;
+    clearBtnLoading(btn);
     try{
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
@@ -1321,7 +1419,7 @@ window.useRouteStartLocation = function(){
       if(data && data.display_name) $('rb-start-direccion').value = data.display_name;
     }catch(e){ /* best-effort */ }
   }, (err) => {
-    btn.textContent = original; btn.disabled = false;
+    clearBtnLoading(btn);
     toast(describeGeoError(err), true);
   }, { enableHighAccuracy: true, timeout: 8000 });
 };
@@ -1371,12 +1469,11 @@ window.createRoute = async function(){
   const stopsData = ids.map(id => leads[id]).filter(Boolean);
   const start = pendingRouteStart;
 
-  const btn = document.querySelector('#route-builder-overlay .btn-primary');
-  const btnOriginal = btn.textContent;
-  btn.textContent = 'Calculando ruta real...'; btn.disabled = true;
+  const btn = $('btn-create-route');
+  setBtnLoading(btn, 'Calculando ruta real...');
 
   const real = await fetchRealRoute(start, stopsData);
-  btn.textContent = btnOriginal; btn.disabled = false;
+  clearBtnLoading(btn);
 
   let orderedStops, geometry = null, summary = null;
   if(real){
@@ -1435,6 +1532,7 @@ window.closeRoutePanel = function(){
 };
 function renderRoutePanel(){
   if(!activeRoute || !activeRoute.stopIds){ return; }
+  renderRouteNavControl();
   const total = activeRoute.stopIds.length;
   const doneCount = activeRoute.stopIds.filter(id => leads[id] && leads[id].estado === 'visitado').length;
   $('route-progress').textContent = `${doneCount} de ${total} visitados` +
@@ -1468,6 +1566,7 @@ window.finishRoute = function(){
   closeRoutePanel();
   hideRouteNextCard();
   syncRouteVisuals();
+  playSound('finish');
   toast('Ruta finalizada.');
 };
 function advanceRouteAfterVisit(justVisitedId){
@@ -1517,6 +1616,17 @@ function currentRouteStopId(){
 function clearRoutePolyline(){
   if(routePolyline){ map.removeLayer(routePolyline); routePolyline = null; }
 }
+function clearStartMarker(){
+  if(startMarker){ map.removeLayer(startMarker); startMarker = null; }
+}
+function drawStartMarker(){
+  clearStartMarker();
+  if(!map || !activeRoute || !activeRoute.startPoint) return;
+  const icon = L.divIcon({ html: '<div class="start-flag">🚩</div>', className: '', iconSize: [26,26], iconAnchor: [3,26] });
+  startMarker = L.marker([activeRoute.startPoint.lat, activeRoute.startPoint.lng], {
+    icon, zIndexOffset: 800, interactive: false,
+  }).addTo(map);
+}
 function drawRoutePolyline(){
   clearRoutePolyline();
   if(!map || !activeRoute || !activeRoute.stopIds || !activeRoute.stopIds.length) return;
@@ -1540,14 +1650,26 @@ function drawRoutePolyline(){
   ).addTo(map);
 }
 function youAreHereIcon(){
-  return L.divIcon({ html: '<div class="you-are-here-dot"></div>', className: '', iconSize: [16,16], iconAnchor: [8,8] });
+  return L.divIcon({
+    html: '<div class="yah-wrap"><div class="you-are-here-arrow" id="yah-arrow"></div></div>',
+    className: '', iconSize: [26,26], iconAnchor: [13,13],
+  });
 }
+function bearingBetween(lat1, lng1, lat2, lng2){
+  const toRad = d => d * Math.PI/180, toDeg = r => r * 180/Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+}
+let lastGeoFix = null;
 function stopLiveTracking(){
   if(geoWatchId != null && navigator.geolocation){
     navigator.geolocation.clearWatch(geoWatchId);
     geoWatchId = null;
   }
   if(youAreHereMarker){ map.removeLayer(youAreHereMarker); youAreHereMarker = null; }
+  lastGeoFix = null;
   arrivalShownForStopId = null;
   hideArrivalCard();
 }
@@ -1562,6 +1684,14 @@ function startLiveTracking(){
     }else{
       youAreHereMarker = L.marker([lat, lng], { icon: youAreHereIcon(), zIndexOffset: 900, interactive: false }).addTo(map);
     }
+    // rota el ícono en la dirección de avance (usa heading del GPS si viene, si no la calcula entre fixes)
+    let bearing = (pos.coords.heading != null && !isNaN(pos.coords.heading)) ? pos.coords.heading : null;
+    if(bearing == null && lastGeoFix){ bearing = bearingBetween(lastGeoFix.lat, lastGeoFix.lng, lat, lng); }
+    if(bearing != null){
+      const arrowEl = document.getElementById('yah-arrow');
+      if(arrowEl) arrowEl.style.transform = `rotate(${bearing}deg)`;
+    }
+    lastGeoFix = { lat, lng };
     if(firstFix){ map.panTo([lat, lng]); firstFix = false; }
     checkArrival(lat, lng);
   }, (err) => {
@@ -1590,6 +1720,7 @@ function showArrivalCard(l){
   arrivalCardLeadId = l.id;
   $('ac-empresa').textContent = l.empresa;
   $('arrival-card').classList.remove('hidden');
+  playSound('arrival');
 }
 window.hideArrivalCard = function(){
   $('arrival-card').classList.add('hidden');
@@ -1601,16 +1732,38 @@ window.openArrivalCompleteVisit = function(){
   openCompleteVisit();
   hideArrivalCard();
 };
+window.startNavigationMode = function(){
+  if(!activeRoute) return;
+  activeRoute.navigationStarted = true;
+  saveActiveRouteToStorage();
+  startLiveTracking();
+  renderRoutePanel();
+  playSound('start');
+  toast('Modo navegación activado 🧭');
+};
+function renderRouteNavControl(){
+  const box = $('route-nav-control');
+  if(!box) return;
+  if(!activeRoute){ box.innerHTML = ''; return; }
+  if(activeRoute.navigationStarted){
+    box.innerHTML = `<div class="nav-active-badge"><span class="pulse-dot"></span>Modo navegación activo — sigue el ícono en el mapa</div>`;
+  }else{
+    box.innerHTML = `<button class="btn btn-primary nav-start-btn" onclick="startNavigationMode()">▶ Comenzar ruta</button>`;
+  }
+}
 function syncRouteVisuals(){
   if(!map) return;
   updateRouteButtonLabel();
   if(activeRoute && activeRoute.stopIds && activeRoute.stopIds.length){
     drawRoutePolyline();
-    startLiveTracking();
+    drawStartMarker();
+    if(activeRoute.navigationStarted) startLiveTracking(); else stopLiveTracking();
   }else{
     clearRoutePolyline();
+    clearStartMarker();
     stopLiveTracking();
   }
+  renderRouteNavControl();
 }
 
 boot();
