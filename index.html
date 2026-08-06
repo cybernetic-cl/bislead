@@ -530,8 +530,17 @@ async function boot(){
       $('auth-screen').classList.remove('hidden');
       return;
     }
-    const snap = await getDoc(doc(db, 'usuarios', user.uid));
-    const data = snap.exists() ? snap.data() : { nombre: user.displayName || user.email, rol: 'vendedor' };
+    const ref = doc(db, 'usuarios', user.uid);
+    const snap = await getDoc(ref);
+    let data;
+    if(snap.exists()){
+      data = snap.data();
+    }else{
+      // Cuenta creada directo en Firebase Auth (sin pasar por el registro de la app):
+      // le creamos su documento en 'usuarios' automáticamente, como vendedor por defecto.
+      data = { nombre: user.displayName || user.email, email: user.email, rol: 'vendedor', creadoEn: serverTimestamp() };
+      try{ await setDoc(ref, data); }catch(e){ toast('No se pudo crear el perfil de usuario: ' + e.message, true); }
+    }
     currentUser = { uid: user.uid, email: user.email, nombre: data.nombre, rol: data.rol || 'vendedor' };
     $('auth-screen').classList.add('hidden');
     $('app').classList.remove('hidden');
