@@ -792,7 +792,7 @@ window.doRegister = async function(){
   }catch(e){ $('register-err').textContent = friendlyAuthError(e); }
   finally{ clearBtnLoading(btn); }
 };
-window.doLogout = async function(){ stopLiveTracking(); clearRoutePolyline(); await signOut(auth); };
+window.doLogout = async function(){ simulationCancelled = true; simulationActive = false; stopLiveTracking(); clearRoutePolyline(); await signOut(auth); };
 function friendlyAuthError(e){
   const c = e.code || '';
   if(c.includes('user-not-found') || c.includes('wrong-password') || c.includes('invalid-credential')) return 'Correo o contraseña incorrectos.';
@@ -1609,6 +1609,7 @@ function renderRoutePanel(){
 window.jumpToStop = function(id){ selectLead(id); };
 window.finishRoute = function(){
   if(!confirm('¿Finalizar la ruta activa? Los sitios seguirán guardados, solo se borra el recorrido.')) return;
+  simulationCancelled = true; simulationActive = false; // bloque de prueba (modo simulación)
   activeRoute = null;
   if(currentUser){ try{ localStorage.removeItem('visitas_route_' + currentUser.uid); }catch(e){} }
   updateRouteButtonLabel();
@@ -1741,7 +1742,7 @@ function startLiveTracking(){
       if(arrowEl) arrowEl.style.transform = `rotate(${bearing}deg)`;
     }
     lastGeoFix = { lat, lng };
-    if(firstFix){ map.panTo([lat, lng]); firstFix = false; }
+    if(firstFix){ map.setView([lat, lng], 17); firstFix = false; } // zoom cercano tipo Waze/Maps al arrancar
     checkArrival(lat, lng);
   }, (err) => {
     // silencioso: si el usuario bloqueó el permiso, simplemente no mostramos el punto en vivo
@@ -1790,15 +1791,100 @@ window.startNavigationMode = function(){
   playSound('start');
   toast('Modo navegación activado 🧭');
 };
+
+/* =========================================================================
+   BLOQUE DE PRUEBA — MODO SIMULACIÓN
+   Solo para probar la navegación sin estar físicamente en el sitio.
+   Mueve el ícono "tú estás aquí" a lo largo de la ruta, simula la llegada
+   a cada parada (tarjeta + sonido), espera 10s y sigue con la siguiente.
+   ELIMINAR ESTE BLOQUE (y el botón asociado en renderRouteNavControl)
+   cuando ya no se necesite para pruebas.
+   ========================================================================= */
+let simulationActive = false;
+let simulationCancelled = false;
+function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+function animateMarkerTo(from, to, durationMs){
+  return new Promise(resolve => {
+    const steps = Math.max(20, Math.round(durationMs / 40));
+    let i = 0;
+    const dLat = (to.lat - from.lat) / steps, dLng = (to.lng - from.lng) / steps;
+    const bearing = bearingBetween(from.lat, from.lng, to.lat, to.lng);
+    const arrowEl = document.getElementById('yah-arrow');
+    if(arrowEl) arrowEl.style.transform = `rotate(${bearing}deg)`;
+    const interval = setInterval(() => {
+      if(simulationCancelled){ clearInterval(interval); resolve(); return; }
+      i++;
+      const lat = from.lat + dLat * i, lng = from.lng + dLng * i;
+      if(youAreHereMarker) youAreHereMarker.setLatLng([lat, lng]);
+      map.panTo([lat, lng], { animate: false });
+      if(i >= steps){ clearInterval(interval); resolve(); }
+    }, durationMs / steps);
+  });
+}
+window.startSimulation = async function(){
+  if(!activeRoute || !activeRoute.stopIds.length){ toast('No hay ruta activa para simular.', true); return; }
+  if(simulationActive) return;
+  simulationActive = true;
+  simulationCancelled = false;
+  renderRouteNavControl();
+  toast('🧪 Simulación iniciada.');
+  playSound('start');
+
+  const startPt = activeRoute.startPoint;
+  if(!youAreHereMarker){
+    youAreHereMarker = L.marker([startPt.lat, startPt.lng], { icon: youAreHereIcon(), zIndexOffset: 900, interactive: false }).addTo(map);
+  }
+  map.setView([startPt.lat, startPt.lng], 17); // zoom cercano, igual que al iniciar navegación real
+
+  let currentPos = startPt;
+  const pendingStops = activeRoute.stopIds.filter(id => leads[id] && leads[id].estado !== 'visitado');
+
+  for(const stopId of pendingStops){
+    if(simulationCancelled) break;
+    const target = leads[stopId];
+    if(!target || !target.lat || !target.lng) continue;
+    await animateMarkerTo(currentPos, { lat: target.lat, lng: target.lng }, 2800);
+    if(simulationCancelled) break;
+    currentPos = { lat: target.lat, lng: target.lng };
+    showArrivalCard(target); // reutiliza la misma tarjeta + sonido de llegada real
+    await sleep(10000);
+    if(simulationCancelled) break;
+    hideArrivalCard();
+  }
+  simulationActive = false;
+  hideArrivalCard();
+  renderRouteNavControl();
+  if(!simulationCancelled){ playSound('finish'); toast('🧪 Simulación terminada.'); }
+};
+window.stopSimulation = function(){
+  simulationCancelled = true;
+  simulationActive = false;
+  hideArrivalCard();
+  renderRouteNavControl();
+  toast('Simulación detenida.');
+};
+/* ================= FIN BLOQUE DE PRUEBA — MODO SIMULACIÓN ================= */
+
 function renderRouteNavControl(){
   const box = $('route-nav-control');
   if(!box) return;
   if(!activeRoute){ box.innerHTML = ''; return; }
+  let html = '';
   if(activeRoute.navigationStarted){
-    box.innerHTML = `<div class="nav-active-badge"><span class="pulse-dot"></span>Modo navegación activo — sigue el ícono en el mapa</div>`;
+    html += `<div class="nav-active-badge"><span class="pulse-dot"></span>Modo navegación activo — sigue el ícono en el mapa</div>`;
   }else{
-    box.innerHTML = `<button class="btn btn-primary nav-start-btn" onclick="startNavigationMode()">▶ Comenzar ruta</button>`;
+    html += `<button class="btn btn-primary nav-start-btn" onclick="startNavigationMode()">▶ Comenzar ruta</button>`;
   }
+  // ---- INICIO bloque de prueba: MODO SIMULACIÓN (quitar cuando ya no se necesite) ----
+  if(!activeRoute.navigationStarted){
+    if(simulationActive){
+      html += `<button class="btn btn-danger nav-start-btn" style="margin-top:8px;border-style:dashed;" onclick="stopSimulation()">⏹ Detener simulación</button>`;
+    }else{
+      html += `<button class="btn btn-ghost nav-start-btn" style="margin-top:8px;border-style:dashed;" onclick="startSimulation()">🧪 Modo simulación (prueba)</button>`;
+    }
+  }
+  // ---- FIN bloque de prueba ----
+  box.innerHTML = html;
 }
 function syncRouteVisuals(){
   if(!map) return;
