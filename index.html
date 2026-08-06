@@ -317,6 +317,7 @@ main.map-area{flex:1;position:relative;min-width:0;}
 .leaflet-container{background:var(--bg) !important;}
 textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;}
 @media(max-width:820px){
+  .panel .row2, .modal .row2{grid-template-columns:1fr;gap:0;}
   aside.sidebar{
     position:fixed;left:0;right:0;top:calc(56px + env(safe-area-inset-top));bottom:0;z-index:1400;
     width:100%;transform:translateY(100%);transition:.22s cubic-bezier(.4,0,.2,1);box-shadow:var(--shadow);
@@ -1843,7 +1844,9 @@ window.startSimulation = async function(){
     if(simulationCancelled) break;
     const target = leads[stopId];
     if(!target || !target.lat || !target.lng) continue;
-    await animateMarkerTo(currentPos, { lat: target.lat, lng: target.lng }, 2800);
+    const distKm = haversineKm(currentPos.lat, currentPos.lng, target.lat, target.lng);
+    const legDurationMs = Math.min(25000, Math.max(9000, distKm * 8000)); // más lento, para poder observarlo bien
+    await animateMarkerTo(currentPos, { lat: target.lat, lng: target.lng }, legDurationMs);
     if(simulationCancelled) break;
     currentPos = { lat: target.lat, lng: target.lng };
     showArrivalCard(target); // reutiliza la misma tarjeta + sonido de llegada real
