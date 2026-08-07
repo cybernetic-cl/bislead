@@ -434,6 +434,18 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
           <button class="btn btn-danger btn-sm" onclick="finishRoute()">Finalizar ruta</button>
         </div>
       </div>
+      <div class="arrival-card hidden" id="next-stop-nav-card">
+        <div class="ac-icon">🧭</div>
+        <div class="ac-body">
+          <div class="ac-title">Yendo a <span id="nsc-empresa"></span></div>
+          <div class="ac-sub" id="nsc-direccion"></div>
+        </div>
+        <div class="ac-actions">
+          <button class="btn btn-primary btn-sm" onclick="openNavFromNextCard('maps')">📍 Maps</button>
+          <button class="btn btn-primary btn-sm" onclick="openNavFromNextCard('waze')">🚗 Waze</button>
+          <button class="btn btn-ghost btn-sm" onclick="hideNextStopNavCard()">Cerrar</button>
+        </div>
+      </div>
     </main>
   </div>
 </div>
@@ -464,6 +476,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
     </div>
     <div class="field"><label>Dirección</label><input id="d-direccion" onchange="updateLeadField('direccion', this.value)"></div>
     <div class="field"><label>Comuna</label><input id="d-comuna" onchange="updateLeadField('comuna', this.value)"></div>
+    <div class="field"><label>Segmento</label>
+      <select id="d-segmento" onchange="updateLeadField('segmento', this.value)">
+        <option value="">Sin especificar</option>
+        <option value="Autolavado">Autolavado</option>
+        <option value="Supermercado">Supermercado</option>
+        <option value="Minimercado">Minimercado</option>
+        <option value="Peluquería Canina">Peluquería Canina</option>
+        <option value="Tienda de Mascotas">Tienda de Mascotas</option>
+        <option value="Distribuidora">Distribuidora</option>
+      </select>
+    </div>
     <div class="nav-actions" id="d-nav-actions" style="display:flex;gap:8px;margin:-6px 0 14px;"></div>
     <div class="row2">
       <div class="field">
@@ -510,6 +533,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
       </div>
       <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:14px;" onclick="useMyLocation()" id="btn-my-location">📍 Usar mi ubicación actual</button>
       <div class="field"><label>Comuna <span style="text-transform:none;font-weight:400;color:var(--muted-2);">(ayuda a armar rutas)</span></label><input id="n-comuna" placeholder="Ej. Providencia"></div>
+      <div class="field"><label>Segmento <span style="text-transform:none;font-weight:400;color:var(--muted-2);">(opcional)</span></label>
+        <select id="n-segmento">
+          <option value="">Sin especificar</option>
+          <option value="Autolavado">Autolavado</option>
+          <option value="Supermercado">Supermercado</option>
+          <option value="Minimercado">Minimercado</option>
+          <option value="Peluquería Canina">Peluquería Canina</option>
+          <option value="Tienda de Mascotas">Tienda de Mascotas</option>
+          <option value="Distribuidora">Distribuidora</option>
+        </select>
+      </div>
       <p class="sub" style="font-size:12px;">Coordenadas: <span class="mono" id="n-coords">—</span> · también puedes hacer clic en el mapa para reubicar. El sitio se crea como "Por visitar" (amarillo).</p>
     </div>
     <div class="modal-foot">
@@ -534,6 +568,17 @@ textarea.config-input{width:100%;min-height:90px;background:var(--surface-2);bor
         <div class="field"><label>Teléfono del contacto</label><input id="cv-telefono"></div>
       </div>
       <div class="field"><label>Correo del contacto</label><input id="cv-email" type="email"></div>
+      <div class="field"><label>Segmento <span style="text-transform:none;font-weight:400;color:var(--muted-2);">(opcional)</span></label>
+        <select id="cv-segmento">
+          <option value="">Sin especificar</option>
+          <option value="Autolavado">Autolavado</option>
+          <option value="Supermercado">Supermercado</option>
+          <option value="Minimercado">Minimercado</option>
+          <option value="Peluquería Canina">Peluquería Canina</option>
+          <option value="Tienda de Mascotas">Tienda de Mascotas</option>
+          <option value="Distribuidora">Distribuidora</option>
+        </select>
+      </div>
       <div class="field"><label>Notas de la visita</label><textarea id="cv-notas" placeholder="¿Cómo resultó la visita?"></textarea></div>
     </div>
     <div class="modal-foot">
@@ -649,6 +694,7 @@ let selectedLeadId = null;
 let pendingNewCoords = null;
 let pendingNewComuna = '';
 let pendingNewCalleNumero = '';
+let pendingNewPlaceName = '';
 let leadsUnsub = null, usersUnsub = null;
 let addrDebounce = null;
 let activeRoute = null;      // { stopIds: [...], createdAt, startPoint }
@@ -887,7 +933,7 @@ function initMap(){
 async function searchAddress(q){
   const box = $('addr-suggestions');
   try{
-    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(q)}`;
+    const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&namedetails=1&limit=5&q=${encodeURIComponent(q)}`;
     const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
     const results = await res.json();
     if(!results.length){ box.classList.add('hidden'); box.innerHTML=''; return; }
@@ -900,6 +946,7 @@ async function searchAddress(q){
         pendingNewCoords = { lat, lng };
         pendingNewComuna = extractComuna(r.address) || '';
         pendingNewCalleNumero = extractCalleNumero(r.address) || '';
+        pendingNewPlaceName = extractPlaceName(r) || '';
         $('n-direccion').value = r.display_name;
         $('n-comuna').value = pendingNewComuna;
         $('n-coords').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
@@ -918,8 +965,18 @@ function extractCalleNumero(addr){
   if(!addr) return '';
   return [addr.road, addr.house_number].filter(Boolean).join(' ').trim();
 }
-// Título automático cuando el sitio se guarda sin nombre: "Calle Número - Comuna"
-function buildAutoTitle(direccionTexto, calleNumero, comunaTexto){
+// Si el punto corresponde a un lugar con nombre propio (empresa, colegio, hospital, institución,
+// negocio, etc.), Nominatim lo entrega en namedetails.name — lo priorizamos sobre la calle.
+function extractPlaceName(result){
+  if(!result) return '';
+  if(result.namedetails && result.namedetails.name) return result.namedetails.name;
+  return '';
+}
+// Título automático cuando el sitio se guarda sin nombre:
+// 1) si es un lugar con nombre propio (colegio, hospital, empresa...) → usa ese nombre
+// 2) si no, usa "Calle Número - Comuna"
+function buildAutoTitle(direccionTexto, calleNumero, comunaTexto, placeName){
+  if(placeName) return placeName;
   const calle = calleNumero || (direccionTexto ? direccionTexto.split(',')[0].trim() : '');
   if(calle && comunaTexto) return `${calle} - ${comunaTexto}`;
   if(calle) return calle;
@@ -961,13 +1018,14 @@ window.useMyLocation = function(){
     map.panTo([lat, lng]); map.setZoom(16);
     clearBtnLoading(btn);
     try{
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${lat}&lon=${lng}`;
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&namedetails=1&lat=${lat}&lon=${lng}`;
       const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
       const data = await res.json();
       if(data && data.display_name){
         $('n-direccion').value = data.display_name;
         pendingNewComuna = extractComuna(data.address) || '';
         pendingNewCalleNumero = extractCalleNumero(data.address) || '';
+        pendingNewPlaceName = extractPlaceName(data) || '';
         $('n-comuna').value = pendingNewComuna;
       }
     }catch(e){ /* reverse geocode es best-effort */ }
@@ -1106,8 +1164,9 @@ window.openNewLeadModal = function(lat, lng){
   pendingNewCoords = (lat!=null && lng!=null) ? {lat,lng} : null;
   pendingNewComuna = '';
   pendingNewCalleNumero = '';
+  pendingNewPlaceName = '';
   $('n-empresa').value=''; $('n-contacto').value=''; $('n-telefono').value='';
-  $('n-direccion').value=''; $('n-comuna').value='';
+  $('n-direccion').value=''; $('n-comuna').value=''; $('n-segmento').value='';
   $('n-coords').textContent = pendingNewCoords ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : '— (usa la búsqueda de dirección o tu ubicación actual)';
   $('new-lead-overlay').classList.add('show');
 };
@@ -1116,7 +1175,7 @@ window.saveNewLead = async function(){
   if(!pendingNewCoords){ toast('Selecciona una ubicación en el mapa, busca una dirección o usa tu ubicación actual.', true); return; }
   const direccionTexto = $('n-direccion').value.trim();
   const comunaTexto = $('n-comuna').value.trim() || pendingNewComuna;
-  const empresa = $('n-empresa').value.trim() || buildAutoTitle(direccionTexto, pendingNewCalleNumero, comunaTexto);
+  const empresa = $('n-empresa').value.trim() || buildAutoTitle(direccionTexto, pendingNewCalleNumero, comunaTexto, pendingNewPlaceName);
   const id = 'l' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
   const payload = {
     empresa,
@@ -1125,6 +1184,7 @@ window.saveNewLead = async function(){
     email: '',
     direccion: direccionTexto,
     comuna: comunaTexto,
+    segmento: $('n-segmento').value,
     lat: pendingNewCoords.lat, lng: pendingNewCoords.lng,
     estado: 'por_visitar',
     valor: 0,
@@ -1159,6 +1219,16 @@ window.selectLead = function(id){
   $('lead-panel').classList.add('show');
   if(l.lat && l.lng){ map.panTo([l.lat, l.lng]); }
 };
+// Igual que selectLead pero SIN abrir la ficha completa de edición — solo marca el sitio
+// como activo (para el mapa y la lógica interna). Se usa en modo navegación: al llegar o
+// al ir a la siguiente parada, no queremos tapar la pantalla con el formulario completo.
+function focusLead(id){
+  selectedLeadId = id;
+  renderLeadList();
+  renderMarkers();
+  const l = leads[id];
+  if(l && l.lat && l.lng){ map.panTo([l.lat, l.lng]); }
+}
 window.closePanel = function(){
   $('panel-overlay').classList.remove('show');
   $('lead-panel').classList.remove('show');
@@ -1180,6 +1250,7 @@ function fillPanel(l){
   $('d-valor').value = l.valor || 0;
   $('d-direccion').value = l.direccion || '';
   $('d-comuna').value = l.comuna || '';
+  $('d-segmento').value = l.segmento || '';
   $('d-proxima').value = l.proximaVisita || '';
   fillVendorSelectInPanel(l);
   const nav = $('d-nav-actions');
@@ -1230,6 +1301,7 @@ window.openCompleteVisit = function(){
   $('cv-contacto').value = l.contacto || '';
   $('cv-telefono').value = l.telefono || '';
   $('cv-email').value = l.email || '';
+  $('cv-segmento').value = l.segmento || '';
   $('cv-notas').value = '';
   $('complete-visit-overlay').classList.add('show');
 };
@@ -1248,6 +1320,7 @@ window.saveCompleteVisit = async function(){
     contacto: $('cv-contacto').value.trim(),
     telefono: $('cv-telefono').value.trim(),
     email: $('cv-email').value.trim(),
+    segmento: $('cv-segmento').value,
     estado: 'visitado',
     actualizadoEnMs: Date.now(),
   };
@@ -1616,6 +1689,7 @@ window.finishRoute = function(){
   updateRouteButtonLabel();
   closeRoutePanel();
   hideRouteNextCard();
+  hideNextStopNavCard();
   syncRouteVisuals();
   playSound('finish');
   toast('Ruta finalizada.');
@@ -1656,7 +1730,30 @@ window.hideRouteNextCard = function(){
 window.goToNextStop = function(){
   const next = pendingNextStopId;
   hideRouteNextCard();
-  if(next) selectLead(next);
+  if(next){
+    focusLead(next);
+    const l = leads[next];
+    if(l) showNextStopNavCard(l);
+  }
+};
+let navNextLeadId = null;
+function showNextStopNavCard(l){
+  navNextLeadId = l.id;
+  $('nsc-empresa').textContent = l.empresa;
+  $('nsc-direccion').textContent = l.direccion || '';
+  $('next-stop-nav-card').classList.remove('hidden');
+}
+window.hideNextStopNavCard = function(){
+  $('next-stop-nav-card').classList.add('hidden');
+  navNextLeadId = null;
+};
+window.openNavFromNextCard = function(kind){
+  const l = leads[navNextLeadId];
+  if(!l || !l.lat || !l.lng) return;
+  const url = kind === 'waze'
+    ? `https://waze.com/ul?ll=${l.lat},${l.lng}&navigate=yes`
+    : `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`;
+  window.open(url, '_blank');
 };
 
 /* ---------------- línea de ruta en el mapa + GPS en vivo ---------------- */
@@ -1779,7 +1876,7 @@ window.hideArrivalCard = function(){
 };
 window.openArrivalCompleteVisit = function(){
   if(!arrivalCardLeadId) return;
-  selectLead(arrivalCardLeadId);
+  focusLead(arrivalCardLeadId);
   openCompleteVisit();
   hideArrivalCard();
 };
@@ -1837,28 +1934,69 @@ window.startSimulation = async function(){
   }
   map.setView([startPt.lat, startPt.lng], 17); // zoom cercano, igual que al iniciar navegación real
 
-  let currentPos = startPt;
   const pendingStops = activeRoute.stopIds.filter(id => leads[id] && leads[id].estado !== 'visitado');
+  const geom = activeRoute.geometry; // puntos [lat,lng] de la ruta real por calles (OSRM), en orden
 
-  for(const stopId of pendingStops){
-    if(simulationCancelled) break;
-    const target = leads[stopId];
-    if(!target || !target.lat || !target.lng) continue;
-    const distKm = haversineKm(currentPos.lat, currentPos.lng, target.lat, target.lng);
-    const legDurationMs = Math.min(25000, Math.max(9000, distKm * 8000)); // más lento, para poder observarlo bien
-    await animateMarkerTo(currentPos, { lat: target.lat, lng: target.lng }, legDurationMs);
-    if(simulationCancelled) break;
-    currentPos = { lat: target.lat, lng: target.lng };
-    showArrivalCard(target); // reutiliza la misma tarjeta + sonido de llegada real
-    await sleep(10000);
-    if(simulationCancelled) break;
-    hideArrivalCard();
+  if(geom && geom.length > 1){
+    // ---- sigue la línea real de la ruta demarcada en el mapa, no saltos en línea recta ----
+    let searchFrom = 0;
+    for(const stopId of pendingStops){
+      if(simulationCancelled) break;
+      const target = leads[stopId];
+      if(!target || !target.lat || !target.lng) continue;
+      // encuentra el punto de la geometría más cercano a este sitio, buscando desde donde íbamos
+      let bestIdx = searchFrom, bestDist = Infinity;
+      for(let i = searchFrom; i < geom.length; i++){
+        const d = haversineKm(geom[i][0], geom[i][1], target.lat, target.lng);
+        if(d < bestDist){ bestDist = d; bestIdx = i; }
+      }
+      await animateAlongGeometry(searchFrom, bestIdx, geom);
+      if(simulationCancelled) break;
+      searchFrom = bestIdx;
+      showArrivalCard(target);
+      await sleep(10000);
+      if(simulationCancelled) break;
+      hideArrivalCard();
+    }
+  }else{
+    // ---- respaldo: no hay geometría real (falló el ruteo), línea recta entre sitios ----
+    let currentPos = startPt;
+    for(const stopId of pendingStops){
+      if(simulationCancelled) break;
+      const target = leads[stopId];
+      if(!target || !target.lat || !target.lng) continue;
+      const distKm = haversineKm(currentPos.lat, currentPos.lng, target.lat, target.lng);
+      const legDurationMs = Math.min(25000, Math.max(9000, distKm * 8000));
+      await animateMarkerTo(currentPos, { lat: target.lat, lng: target.lng }, legDurationMs);
+      if(simulationCancelled) break;
+      currentPos = { lat: target.lat, lng: target.lng };
+      showArrivalCard(target);
+      await sleep(10000);
+      if(simulationCancelled) break;
+      hideArrivalCard();
+    }
   }
   simulationActive = false;
   hideArrivalCard();
   renderRouteNavControl();
   if(!simulationCancelled){ playSound('finish'); toast('🧪 Simulación terminada.'); }
 };
+// Anima el marcador a través de una porción de la geometría real de la ruta (tramo fromIdx..toIdx),
+// pasando por cada punto intermedio en vez de saltar directo — así se ve seguir la calle de verdad.
+async function animateAlongGeometry(fromIdx, toIdx, geom){
+  if(toIdx <= fromIdx) return;
+  const pts = geom.slice(fromIdx, toIdx + 1).map(p => ({ lat: p[0], lng: p[1] }));
+  if(pts.length < 2) return;
+  let totalDist = 0;
+  for(let i = 1; i < pts.length; i++){ totalDist += haversineKm(pts[i-1].lat, pts[i-1].lng, pts[i].lat, pts[i].lng); }
+  const totalDurationMs = Math.min(25000, Math.max(9000, totalDist * 8000)); // mismo ritmo "lento" pedido antes
+  for(let i = 1; i < pts.length; i++){
+    if(simulationCancelled) return;
+    const segDist = haversineKm(pts[i-1].lat, pts[i-1].lng, pts[i].lat, pts[i].lng);
+    const segDuration = totalDist > 0 ? Math.max(120, (segDist / totalDist) * totalDurationMs) : totalDurationMs / (pts.length - 1);
+    await animateMarkerTo(pts[i-1], pts[i], segDuration);
+  }
+}
 window.stopSimulation = function(){
   simulationCancelled = true;
   simulationActive = false;
