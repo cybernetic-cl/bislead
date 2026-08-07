@@ -80,10 +80,8 @@ input,select,textarea{font-family:inherit;}
 .field textarea{resize:vertical;min-height:64px;}
 .field input[type="date"]{position:relative;color-scheme:dark;}
 .field input[type="date"]::-webkit-calendar-picker-indicator{
-  filter:invert(1) brightness(1.6);opacity:.85;cursor:pointer;
-  padding:4px;border-radius:5px;margin-right:-4px;transition:.15s;
+  display:none; /* usamos nuestro propio botón 📅 (date-cal-btn); evita el ícono nativo duplicado */
 }
-.field input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;background:var(--surface-3);}
 .date-input-wrap{position:relative;}
 .date-input-wrap input[type="date"]{padding-right:42px;width:100%;}
 .date-cal-btn{
@@ -1855,13 +1853,20 @@ function checkArrival(lat, lng){
   if(dist <= ARRIVAL_THRESHOLD_KM){
     if(arrivalShownForStopId !== stopId){
       arrivalShownForStopId = stopId;
-      showArrivalCard(l);
+      handleRealArrival(l);
     }
   }else if(dist > ARRIVAL_THRESHOLD_KM * 2 && arrivalShownForStopId === stopId){
     // se alejó bastante: permitir que vuelva a avisar si regresa
     arrivalShownForStopId = null;
-    hideArrivalCard();
   }
+}
+// Llegada real por GPS (no simulación): cierra la tarjeta "Yendo a" y abre directo
+// el formulario de completar visita, sin pasos intermedios.
+function handleRealArrival(l){
+  hideNextStopNavCard();
+  playSound('arrival');
+  focusLead(l.id);
+  openCompleteVisit();
 }
 let arrivalCardLeadId = null;
 function showArrivalCard(l){
